@@ -254,6 +254,13 @@ array_t* get_words(const char *str_commandline)
 		c = str_commandline[i];
 		//printf("c = >%c<\n", c);
 
+		if( c == '\\' )
+		{
+			c = str_commandline[++i];
+			strncat(word, &c, 1);
+			continue;
+		}
+
 		if( ( c == '\"' || c == '\'' ) && pair == '\0' )
 		{
 			pair = c;
@@ -272,36 +279,30 @@ array_t* get_words(const char *str_commandline)
 			continue;
 		}
 
-		if( c == '\\' )
-		{
-			strncat(word, &c, 1);
-			c = str_commandline[++i];
-		}
-
 		for(j = 0; j < 9; j++)
 		{
 			int len;
-
+	
 			len = strlen(separator[j]);
-
+	
 			if( strncmp(str_commandline+i, separator[j], len) == 0 )
 			{
 				if( word[0] != '\0' )
 				{
 					array_add(array, strdup(word) );
 				}
-
+	
 				array_add(array, strdup(separator[j]) );
-
+	
 				//printf("separator add >%s< >%s<\n", word, separator[j]);
-
+	
 				memset(word, 0, STR_SIZE);
 				i += len-1;
-
+	
 				break;
 			}
 		}
-
+	
 		if( j < 9 )
 		{
 			continue;
@@ -326,7 +327,7 @@ array_t* get_words(const char *str_commandline)
 	{
 		char *s = (char *) array_get(array, i);
 
-		//printf(">%s<\n", s);
+		printf(">%s<\n", s);
 	}
 
 	return array;
@@ -532,7 +533,7 @@ int main(int argc, char **argv, char **env)
 	process_t *process;
 
 	//process = command("echo Hello world; echo dalsi riadok");
-	process = command("echo hello ;ls -al | wc -l | wc -c | tr '3' 'X'; echo world");
+	process = command("echo \"\\\"hello world\\\"\"; ls -al | wc -l | wc -c | tr '3' 'X'; echo \"\'END\'\"");
 
 	process_print(process);
 
