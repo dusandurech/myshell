@@ -15,6 +15,8 @@
 #define PROCESS_STDOUT_APPEND_FILE	16
 #define PROCESS_STDIN_DOC_HERE		32
 #define PROCESS_NO_WAIT			64
+#define PROCESS_AND			128
+#define PROCESS_OR			256
 
 typedef struct doument_here_struct
 {
@@ -214,9 +216,32 @@ int process_run(process_t *process)
 		break;
 
 		default :	// parrent
-			wait(&status);
+			if( ! ( process->flag & PROCESS_NO_WAIT ) )
+			{
+				wait(&status);
+			}
 
-			if( process->next_process != NULL )
+			if( process->flag & PROCESS_AND )
+			{
+				if( status == 0 )
+				{
+					if( process->next_process != NULL )
+					{
+						process_run(process->next_process);
+					}
+				}
+			}
+			else if( process->flag & PROCESS_OR )
+			{
+				if( status != 0 )
+				{
+					if( process->next_process != NULL )
+					{
+						process_run(process->next_process);
+					}
+				}
+			}
+			else if( process->next_process != NULL )
 			{
 				process_run(process->next_process);
 			}
@@ -438,12 +463,27 @@ process_t* command(char *str_command)
 			continue;
 		}
 
-		if( s == NULL || strcmp(s, ";") == 0 || strcmp(s, "|") == 0 )
+		if( s == NULL || strcmp(s, ";") == 0 || strcmp(s, "|") == 0 || strcmp(s, "&&") == 0 || strcmp(s, "||") == 0 || strcmp(s, "&") == 0)
 		{
 			process_set(process, filename_exec, get_array_from_array(array_arg), NULL);
 
 			filename_exec = NULL;
 			arrray_do_empty(array_arg);
+
+			if( s != NULL && strcmp(s, "&&") == 0 )
+			{
+				process->flag |= PROCESS_AND;
+			}
+
+			if( s != NULL && strcmp(s, "||") == 0 )
+			{
+				process->flag |= PROCESS_OR;
+			}
+
+			if( s != NULL && strcmp(s, "&") == 0 )
+			{
+				process->flag |= PROCESS_NO_WAIT;
+			}
 
 			if( process_main == NULL )
 			{
@@ -459,7 +499,11 @@ process_t* command(char *str_command)
 				prev_op = PREV_OP_NONE;
 			}
 
-			if( s == NULL || strcmp(s, ";") == 0 )
+			if( s != NULL && strcmp(s, "|") == 0 )
+			{
+				prev_op = PREV_OP_PIPE;
+			}
+			else
 			{
 				if( process_root == NULL )
 				{
@@ -478,11 +522,6 @@ process_t* command(char *str_command)
 				}
 
 				process_main = NULL;
-			}
-	
-			if( s != NULL && strcmp(s, "|") == 0 )
-			{
-				prev_op = PREV_OP_PIPE;
 			}
 		}
 		else
@@ -567,8 +606,10 @@ int main(int argc, char **argv, char **env)
 	process_t *process;
 
 	//process = command("echo Hello world; echo dalsi riadok");
-	//process = command("echo \"\\\"hello world\\\"\"; ls -al | wc -l | wc -c | tr '3' 'X'; echo \"\'END\'\"");
-	process = command("echo ahoj svet >> msg; cat < msg");
+	process = command("echo \"\\\"hello world\\\"\"; ls -al | wc -l | wc -c | tr '3' 'X'; echo \"\'END\'\"");
+	//process = command("echo ahoj svet >> msg; cat < msg");
+	//process = command("echo ahoj && echo svet");
+	//process = command("echo ahoj & echo svet");
 
 	process_print(process);
 
