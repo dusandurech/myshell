@@ -3,17 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "regexp.h"
+
 #define STR_LINE_SIZE	256
 
 #define ALPHABET_COUNT	(126-32+1)
-
-typedef struct automat_struct
-{
-	char *input_alphabet;
-	int count_status;
-	int current_status;
-	int **matrix;
-} automat_t;
 
 static int get_count_status(const char *str_regexp)
 {
@@ -343,6 +337,7 @@ int regexp(automat_t *automat, const char *str)
 	return res;
 }
 
+#ifdef TEST_REGEXP
 int main()
 {
 	automat_t *automat;
@@ -356,4 +351,4 @@ int main()
 
 	return 0;
 }
-
+#endif

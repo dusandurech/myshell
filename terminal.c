@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <termios.h>
 
+#include "terminal.h"
+
 #define TERM_LINE_SIZE	256
 
 static FILE *input;
@@ -170,6 +172,7 @@ int term_quit()
 	return 0;
 }
 
+#ifdef TEST_TERMINAL
 int main()
 {
 	char str[80];
@@ -185,4 +188,4 @@ int main()
 
 	return 0;
 }
-
+#endif
