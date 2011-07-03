@@ -40,18 +40,21 @@ typedef struct process_struct
 	struct process_struct *next_process;
 } process_t;
 
-process_t* process_new(char *filename_exec, char **param, char **env)
+process_t* process_new()
 {
 	process_t *process;
 
 	process = (process_t *) malloc( sizeof(process_t) );
 	memset(process, 0, sizeof(process_t));
 
+	return process;
+}
+
+void process_set(process_t *process, char *filename_exec, char **param, char **env)
+{
 	process->filename_exec = filename_exec;
 	process->param = param;
 	process->env = env;
-
-	return process;
 }
 
 void process_print(const process_t *process)
@@ -83,7 +86,7 @@ void process_print(const process_t *process)
 		printf(">>%s ", process->stdout_filename);
 	}
 
-	if( process->flag & PROCESS_STDIN_FILE )
+	if( process->flag & PROCESS_STDIN_DOC_HERE )
 	{
 		printf("<< \"DOCUMENT HETE\" ");
 	}
@@ -428,6 +431,7 @@ process_t* command(char *str_command)
 
 		if( filename_exec == NULL )
 		{
+			process = process_new();
 			filename_exec = get_command_path(s);
 			array_add(array_arg, s);
 		
@@ -436,7 +440,7 @@ process_t* command(char *str_command)
 
 		if( s == NULL || strcmp(s, ";") == 0 || strcmp(s, "|") == 0 )
 		{
-			process = process_new(filename_exec, get_array_from_array(array_arg), NULL);
+			process_set(process, filename_exec, get_array_from_array(array_arg), NULL);
 
 			filename_exec = NULL;
 			arrray_do_empty(array_arg);
@@ -483,6 +487,36 @@ process_t* command(char *str_command)
 		}
 		else
 		{
+			if( s != NULL && strcmp(s, ">") == 0 )
+			{
+				char *stdout_filename = (char *) array_get(array, ++i);
+
+				process->stdout_filename = strdup(stdout_filename);
+				process->flag |= PROCESS_STDOUT_FILE;
+	
+				continue;
+			}
+
+			if( s != NULL && strcmp(s, ">>") == 0 )
+			{
+				char *stdout_filename = (char *) array_get(array, ++i);
+
+				process->stdout_filename = strdup(stdout_filename);
+				process->flag |= PROCESS_STDOUT_APPEND_FILE;
+	
+				continue;
+			}
+
+			if( s != NULL && strcmp(s, "<") == 0 )
+			{
+				char *stdin_filename = (char *) array_get(array, ++i);
+
+				process->stdin_filename = strdup(stdin_filename);
+				process->flag |= PROCESS_STDIN_FILE;
+
+				continue;
+			}
+
 			array_add(array_arg, s);
 		}
 	}
@@ -533,7 +567,8 @@ int main(int argc, char **argv, char **env)
 	process_t *process;
 
 	//process = command("echo Hello world; echo dalsi riadok");
-	process = command("echo \"\\\"hello world\\\"\"; ls -al | wc -l | wc -c | tr '3' 'X'; echo \"\'END\'\"");
+	//process = command("echo \"\\\"hello world\\\"\"; ls -al | wc -l | wc -c | tr '3' 'X'; echo \"\'END\'\"");
+	process = command("echo ahoj svet >> msg; cat < msg");
 
 	process_print(process);
 
