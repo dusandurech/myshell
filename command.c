@@ -109,7 +109,7 @@ static array_t* get_words(const char *str_commandline)
 	{
 		char *s = (char *) array_get(array, i);
 
-		printf(">%s<\n", s);
+		//printf(">%s<\n", s);
 	}
 
 	return array;
