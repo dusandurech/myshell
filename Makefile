@@ -1,6 +1,6 @@
 
 CC=gcc
-OBJ=main.o regexp.o array.o dir.o terminal.o process.o command.o
+OBJ=main.o regexp.o util.o array.o dir.o terminal.o process.o command.o
 
 myshell: $(OBJ)
 	$(CC) $(FLAGS) -o myshell $(OBJ)
@@ -10,6 +10,9 @@ main.o: main.c main.h
 
 regexp.o: regexp.c regexp.h
 	$(CC) $(FLAGS) -c regexp.c
+
+util.o: util.c util.h
+	$(CC) $(FLAGS) -c util.c
 
 array.o: array.c array.h
 	$(CC) $(FLAGS) -c array.c
