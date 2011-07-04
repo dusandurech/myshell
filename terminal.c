@@ -7,6 +7,7 @@
 
 #include "main.h"
 
+#include "util.h"
 #include "terminal.h"
 
 static FILE *input;
@@ -98,6 +99,46 @@ static void backspace()
 	fputc('\10', stdout);
 }
 
+static char* get_current_short_dir()
+{
+	static char path[STR_PATH_SIZE];
+
+	char *home_dir;
+	char *current_dir;
+	int home_dir_len;
+	int current_dir_len;
+
+	home_dir = get_home_dir();
+	current_dir = get_current_dir();
+
+	home_dir_len = strlen(home_dir);
+	current_dir_len = strlen(current_dir);
+
+	if( current_dir_len >= home_dir_len && strncmp(home_dir, current_dir, home_dir_len) == 0 )
+	{
+		path[0] = '~';
+		strcpy(path+1, current_dir+home_dir_len);
+	}
+	else
+	{
+		strcpy(path, current_dir);
+	}
+
+	return path;
+}
+
+static char get_prompt()
+{
+	if( getuid() == 0 )
+	{
+		return '#';
+	}
+	else
+	{
+		return '$';
+	}
+}
+
 int term_init()
 {
 	if( ! isatty( fileno(stdout) ) )
@@ -128,6 +169,11 @@ int term_init()
 	}
 
 	return 0;
+}
+
+void term_print_status()
+{
+	fprintf(stdout, "%s@%s:%s%c ", get_username(), get_nodename(), get_current_short_dir(), get_prompt());
 }
 
 int term_readline(char *str_line)

@@ -19,6 +19,7 @@ int main(int argc, char **argv, char **env)
 	term_init();
 
 	do{
+		term_print_status();
 		term_readline(str_command);
 
 		if( strcmp(str_command, "exit") != 0 )
