@@ -28,7 +28,10 @@ static void append(char c)
 	line[offset++] = c;
 	len++;
 
-	fprintf(stdout,"\r%s", line);
+	for(i = offset-1; i < len; i++)
+	{
+		fputc(line[i], stdout);
+	}
 
 	for(i = 0; i < len-offset; i++)
 	{
@@ -66,7 +69,7 @@ static void backspace()
 {
 	int i;
 
-	if( len == 0 )
+	if( len == 0 || offset == 0 )
 	{
 		return;
 	}
@@ -76,15 +79,23 @@ static void backspace()
 	len--;
 	offset--;
 
-	fprintf(stdout,"\r%s", line);
+	//fprintf(stdout,"\r%s", line);
+
+	fputc('\10', stdout);
+
+	for(i = offset; i < len; i++)
+	{
+		fputc(line[i], stdout);
+	}
 
 	fputc(' ', stdout);
-	fputc('\10', stdout);
 
 	for(i = 0; i < len-offset; i++)
 	{
 		fputc('\10', stdout);
 	}
+
+	fputc('\10', stdout);
 }
 
 int term_init()
