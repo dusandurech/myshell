@@ -4,6 +4,8 @@
 #include <string.h>
 #include <assert.h>
 
+#include <unistd.h>
+
 #include "main.h"
 
 #include "array.h"
@@ -126,28 +128,15 @@ static char* get_command_path(char *str_command)
 
 	while( dirname != NULL )
 	{
+		char fullpath[STR_PATH_SIZE];
 		dir_t *dir;
-		int i;
 
-		//printf("dirname = %s\n", dirname);
+		sprintf(fullpath, "%s/%s", dirname, str_command);
 
-		dir = dir_new(dirname);
-
-		for(i = 0; i < dir->item->count; i++)
+		if( access(fullpath, F_OK|R_OK|X_OK) == 0 )
 		{
-			char *s = (char *) array_get(dir->item, i);
-
-			if( strcmp(str_command, s) == 0 )
-			{
-				char fullpath[STR_PATH_SIZE];
-
-				sprintf(fullpath, "%s/%s", dirname, s);
-
-				return strdup(fullpath);
-			}
+			return strdup(fullpath);
 		}
-
-		dir_destroy(dir);
 
 		dirname = strtok(NULL, ":");
 	}
