@@ -5,9 +5,9 @@
 #include <unistd.h>
 #include <termios.h>
 
-#include "terminal.h"
+#include "main.h"
 
-#define TERM_LINE_SIZE	256
+#include "terminal.h"
 
 static FILE *input;
 static FILE *output;
@@ -15,7 +15,7 @@ static FILE *output;
 static struct termios init_term;
 static struct termios new_term;
 
-static char line[TERM_LINE_SIZE];
+static char line[STR_LINE_SIZE];
 static int offset;
 static int len;
 
@@ -23,7 +23,7 @@ static void append(char c)
 {
 	int i;
 
-	memmove(line+offset+1, line+offset, TERM_LINE_SIZE-(offset+1));
+	memmove(line+offset+1, line+offset, STR_LINE_SIZE-(offset+1));
 
 	line[offset++] = c;
 	len++;
@@ -74,7 +74,7 @@ static void backspace()
 		return;
 	}
 
-	memmove(line+offset-1, line+offset, TERM_LINE_SIZE-(offset+1));
+	memmove(line+offset-1, line+offset, STR_LINE_SIZE-(offset+1));
 
 	len--;
 	offset--;
@@ -134,7 +134,7 @@ int term_readline(char *str_line)
 {
 	int c;
 
-	memset(line, 0, TERM_LINE_SIZE);
+	memset(line, 0, STR_LINE_SIZE);
 	offset = 0;
 	len = 0;
 
@@ -190,7 +190,7 @@ int term_quit()
 #ifdef TEST_TERMINAL
 int main()
 {
-	char str[80];
+	char str[STR_LINE_SIZE];
 
 	term_init();
 

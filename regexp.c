@@ -3,9 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "main.h"
 #include "regexp.h"
-
-#define STR_LINE_SIZE	256
 
 #define ALPHABET_COUNT	(126-32+1)
 

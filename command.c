@@ -4,13 +4,13 @@
 #include <string.h>
 #include <assert.h>
 
+#include "main.h"
+
 #include "array.h"
 #include "dir.h"
 
 #include "process.h"
 #include "command.h"
-
-#define STR_SIZE	256
 
 static array_t* get_words(const char *str_commandline)
 {
@@ -117,7 +117,7 @@ static array_t* get_words(const char *str_commandline)
 
 static char* get_command_path(char *str_command)
 {
-	char env_path[STR_SIZE];
+	char env_path[STR_PATH_SIZE];
 	char *dirname;
 
 	strcpy(env_path, getenv("PATH"));
@@ -139,7 +139,7 @@ static char* get_command_path(char *str_command)
 
 			if( strcmp(str_command, s) == 0 )
 			{
-				char fullpath[STR_SIZE];
+				char fullpath[STR_PATH_SIZE];
 
 				sprintf(fullpath, "%s/%s", dirname, s);
 

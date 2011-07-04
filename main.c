@@ -4,11 +4,11 @@
 #include <string.h>
 #include <assert.h>
 
+#include "main.h"
+
 #include "process.h"
 #include "command.h"
 #include "terminal.h"
-
-#define STR_LINE_SIZE	256
 
 int main(int argc, char **argv, char **env)
 {

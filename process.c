@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include "main.h"
+
 #include "array.h"
 #include "dir.h"
 
