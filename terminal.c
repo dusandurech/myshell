@@ -169,6 +169,10 @@ int term_readline(char *str_line)
 int term_quit()
 {
 	tcsetattr(fileno(input), TCSANOW, &init_term);
+
+	fclose(input);
+	fclose(output);
+
 	return 0;
 }
 
