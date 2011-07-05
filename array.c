@@ -170,7 +170,69 @@ void array_del_item(array_t *p, int n, void *f)
 
 void arrray_do_empty(array_t *p)
 {
+	assert( p != NULL );
+
 	p->count = 0;
+}
+
+void arrray_do_empty_item(array_t *p, void *f)
+{
+	void (*fce)(void *);
+	int i;
+
+	assert( p != NULL );
+	assert( f != NULL );
+
+	fce = f;
+
+	for(i = 0 ; i < p->count ; i++)
+		fce(p->list[i]);
+
+	arrray_do_empty(p);
+}
+
+void array_print_string(array_t *p)
+{
+	int i;
+
+	assert( p != NULL );
+
+	for(i = 0 ; i < p->count ; i++)
+	{
+		char *s;
+
+		s = (char *) p->list[i];
+
+		printf(">%s< ", s);
+	}
+
+	putchar('\n');
+}
+
+void** array_get_clone_array(array_t *array, void *f)
+{
+	void **res;
+	void* (*fce)(void *);
+	int i;
+
+	assert( array != NULL );
+	assert( f != NULL );
+
+	fce = f;
+
+	res = (void **) malloc( (array->count+1) * sizeof(void *) );
+
+	for(i = 0; i < array->count; i++ )
+	{
+		void *item;
+
+		item = (void *) array->list[i];
+		res[i] = fce(item);
+	}
+
+	res[array->count] = NULL;
+
+	return res;
 }
 
 void array_destroy(array_t *p)

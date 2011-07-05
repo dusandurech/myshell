@@ -24,6 +24,9 @@ extern int array_search_item(array_t *p, void *n);
 extern void array_del(array_t *p,int n);
 extern void array_del_item(array_t *p,int n,void *f);
 extern void arrray_do_empty(array_t *p);
+extern void arrray_do_empty_item(array_t *p, void *f);
+extern void array_print_string(array_t *p);
+extern void** array_get_clone_array(array_t *array, void *f);
 
 extern void array_destroy(array_t *p);
 extern void array_destroy_item(array_t *p,void *f);
