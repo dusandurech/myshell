@@ -225,6 +225,43 @@ int process_run(process_t *process)
 
 void process_destroy(process_t *process)
 {
+	int i;
+
+	if( process->filename_exec != NULL )
+	{
+		free(process->filename_exec);	
+	}
+
+	if( process->param != NULL )
+	{
+		for(i = 0; process->param[i] != NULL; i++)
+		{
+			free(process->param[i]);
+		}
+
+		free(process->param);
+	}
+
+	if( process->stdout_filename != NULL )
+	{
+		free(process->stdout_filename);
+	}
+
+	if( process->stdin_filename != NULL )
+	{
+		free(process->stdin_filename);
+	}
+
+	if( process->pipe_process != NULL )
+	{
+		process_destroy(process->pipe_process);
+	}
+
+	if( process->next_process != NULL )
+	{
+		process_destroy(process->next_process);
+	}
+
 	free(process);
 }
 
@@ -272,12 +309,14 @@ int main(int argc, char **argv, char **env)
 	//process = command("echo \"\\\"hello world\\\"\"; ls -al | wc -l | wc -c | tr '3' 'X'; echo \"\'END\'\"");
 	//process = command("echo ahoj svet >> msg; cat < msg");
 	//process = command("echo ahoj && echo svet");
-	process = command("[ 1 -eq 2 ] && echo ok");
+	//process = command("[ 1 -eq 2 ] && echo ok");
 
 	process_print(process);
 
 	printf("\nrun process:\n");
 	process_run(process);
+
+	process_destroy(process);
 
 	//printf("%s\n", get_command_path("ls"));
 
