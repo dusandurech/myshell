@@ -117,6 +117,18 @@ static array_t* get_words(const char *str_commandline)
 	return array;
 }
 
+static void destroy_words(char **words)
+{
+	int i;
+
+	for(i = 0; words[i] != NULL; i++)
+	{
+		free(words[i]);
+	}
+
+	free(words);
+}
+
 static char* get_command_path(char *str_command)
 {
 	char env_path[STR_PATH_SIZE];
@@ -142,26 +154,6 @@ static char* get_command_path(char *str_command)
 	}
 
 	return NULL;
-}
-
-static  char** get_array_from_array(array_t *array)
-{
-	char **res;
-	int i;
-
-	res = (char **) malloc( (array->count+1) * sizeof(char *) );
-
-	for(i = 0; i < array->count; i++ )
-	{
-		char *s;
-
-		s = (char *)array_get(array, i);
-		res[i] = strdup(s);
-	}
-
-	res[array->count] = NULL;
-
-	return res;
 }
 
 #define PREV_OP_NONE	0
@@ -197,21 +189,30 @@ process_t* command(char *str_command)
 
 		//printf(">%s<\n", s);
 
-		if( filename_exec == NULL )
+		if( s != NULL && filename_exec == NULL )
 		{
-			process = process_new();
 			filename_exec = get_command_path(s);
-			array_add(array_arg, s);
+
+			if( filename_exec == NULL )
+			{
+				printf("filename_exec = %s\n", s);
+				fprintf(stderr, "Command not found !\n");
+			}
+
+			process = process_new();
+			array_add(array_arg, strdup(s));
 		
 			continue;
 		}
 
-		if( s == NULL || strcmp(s, ";") == 0 || strcmp(s, "|") == 0 || strcmp(s, "&&") == 0 || strcmp(s, "||") == 0 || strcmp(s, "&") == 0)
+		if( process != NULL && ( s == NULL || strcmp(s, ";") == 0 || strcmp(s, "|") == 0 ||
+					 strcmp(s, "&&") == 0 || strcmp(s, "||") == 0 || strcmp(s, "&") == 0) )
 		{
-			process_set(process, filename_exec, get_array_from_array(array_arg), NULL);
+			process_set(process, filename_exec, (char **)array_get_clone_array(array_arg, strdup), NULL);
 
 			filename_exec = NULL;
-			arrray_do_empty(array_arg);
+			//array_print_string(array_arg);
+			arrray_do_empty_item(array_arg, free);
 
 			if( s != NULL && strcmp(s, "&&") == 0 )
 			{
@@ -238,6 +239,7 @@ process_t* command(char *str_command)
 			{
 				process->pipe_process = process_main;
 				process_main = process;
+				process = NULL;
 
 				prev_op = PREV_OP_NONE;
 			}
@@ -265,6 +267,7 @@ process_t* command(char *str_command)
 				}
 
 				process_main = NULL;
+				process = NULL;
 			}
 		}
 		else
@@ -299,9 +302,15 @@ process_t* command(char *str_command)
 				continue;
 			}
 
-			array_add(array_arg, s);
+			if( process != NULL && s != NULL )
+			{
+				array_add(array_arg, strdup(s));
+			}
 		}
 	}
+
+	array_destroy_item(array, free);
+	array_destroy_item(array_arg, free);
 
 	return process_root;
 }
@@ -311,13 +320,15 @@ int main(int argc, char **argv, char **env)
 {
 	process_t *process;
 
-	//process = command("echo Hello world; echo dalsi riadok");
-	process = command("echo \"\\\"hello world\\\"\"; ls -al | wc -l | wc -c | tr '3' 'X'; echo \"\'END\'\"");
+	process = command("echo begin; echo \"\\\"hello world\\\"\"; ls -al | wc -l | wc -c | tr '3' 'X'; echo \"\'END\'\"; echo end");
+	//process = command("echo Hello world;");
 
 	process_print(process);
 
 	printf("\nrun process:\n");
 	process_run(process);
+
+	process_destroy(process);
 
 	return 0;
 }
