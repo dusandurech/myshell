@@ -147,8 +147,11 @@ int term_init()
 		return -1;
 	}
 
-	input = fopen("/dev/tty", "r");
-	output = fopen("/dev/tty", "w");
+//	input = fopen("/dev/tty", "r");
+//	output = fopen("/dev/tty", "w");
+
+	input = stdin;
+	output = stdout;
 
 	if( input == NULL || output == NULL )
 	{
@@ -164,12 +167,15 @@ int term_init()
 	
 	term_set_new();
 
+	printf("get my control term: %d\n", tcgetpgrp(0) );
+
 	return 0;
 }
 
 void term_print_status()
 {
-	fprintf(stdout, "%s@%s:%s%c ", get_username(), get_nodename(), get_current_short_dir(), get_prompt());
+	fprintf(stdout, "myshell%c ", get_prompt());
+	//fprintf(stdout, "%s@%s:%s%c ", get_username(), get_nodename(), get_current_short_dir(), get_prompt());
 }
 
 int term_readline(char *str_line)
@@ -183,6 +189,9 @@ int term_readline(char *str_line)
 	do{
 		switch( (c = fgetc(input)) )
 		{
+			case -1 :
+			break;
+
 			case '\n' :
 				fputc('\n', stdout);
 			break;
@@ -209,6 +218,7 @@ int term_readline(char *str_line)
 			break;
 
 			default :
+				//printf("c = %d\n", c);
 				append(c);
 			break;
 		}
@@ -241,12 +251,17 @@ int term_set_new()
 	return 0;
 }
 
+int term_get_file_fd()
+{
+	return fileno(input);
+}
+
 int term_quit()
 {
 	term_set_old();
 
-	fclose(input);
-	fclose(output);
+//	fclose(input);
+//	fclose(output);
 
 	return 0;
 }

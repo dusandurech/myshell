@@ -14,6 +14,8 @@
 
 #include "process.h"
 
+#define PROCESS_GPID_NONE	-1
+
 process_t* process_new()
 {
 	process_t *process;
@@ -125,12 +127,24 @@ static int process_exec(process_t *process)
 	return res;
 }
 
-static int process_pipe(process_t *process)
+static int process_pipe(process_t *process, pid_t grp_pid)
 {
 	int fd[2];
 	int status;
 
 	pipe(fd);
+
+	if( grp_pid == PROCESS_GPID_NONE )
+	{
+		grp_pid = getpid();
+		
+		if( tcsetpgrp(0, grp_pid) != 0 )
+		{
+			fprintf(stderr, "ERROR !!!!!!!!!!!!!!!!!!!!\n");
+		}
+
+		fprintf(stderr, "pid = %d grp pid = %d tcgetpgrp = %d\n", getpid(), grp_pid,  tcgetpgrp(0));
+	}
 
 	switch( fork() )
 	{
@@ -141,15 +155,18 @@ static int process_pipe(process_t *process)
 
 			if( process->pipe_process != NULL && process->pipe_process->pipe_process != NULL )
 			{
-				process_pipe(process->pipe_process);
+				process_pipe(process->pipe_process, grp_pid);
 			}
 			else
 			{
+				setpgid(getpid(), grp_pid);
 				process_exec(process->pipe_process);
 			}
 		break;
 		
 		default :
+			setpgid(getpid(), grp_pid);
+
 			close(0);
 			dup(fd[0]);
 			close(fd[1]);
@@ -179,7 +196,7 @@ int process_run(process_t *process)
 		case 0 :	// child
 			if( process->pipe_process != NULL )
 			{
-				process_pipe(process);
+				process_pipe(process, PROCESS_GPID_NONE);
 			}
 			else
 			{
