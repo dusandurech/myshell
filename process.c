@@ -138,12 +138,12 @@ static int process_pipe(process_t *process, pid_t grp_pid)
 	{
 		grp_pid = getpid();
 		
+		setpgid(getpid(), grp_pid);
+
 		if( tcsetpgrp(0, grp_pid) != 0 )
 		{
 			fprintf(stderr, "ERROR !!!!!!!!!!!!!!!!!!!!\n");
 		}
-
-		fprintf(stderr, "pid = %d grp pid = %d tcgetpgrp = %d\n", getpid(), grp_pid,  tcgetpgrp(0));
 	}
 
 	switch( fork() )
