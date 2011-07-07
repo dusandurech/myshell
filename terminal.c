@@ -13,7 +13,7 @@
 static FILE *input;
 static FILE *output;
 
-static struct termios init_term;
+static struct termios old_term;
 static struct termios new_term;
 
 static char line[STR_LINE_SIZE];
@@ -156,17 +156,13 @@ int term_init()
 		return -1;
 	}
 
-	tcgetattr(fileno(input), &init_term);
+	tcgetattr(fileno(input), &old_term);
 
-	new_term = init_term;
+	new_term = old_term;
 	new_term.c_lflag &= ~ICANON;
 	new_term.c_lflag &= ~ECHO;
 	
-	if( tcsetattr(fileno(input), TCSANOW, &new_term) != 0 )
-	{
-		fprintf(stderr, "Could not set attributes !\n");
-		return -1;
-	}
+	term_set_new();
 
 	return 0;
 }
@@ -223,9 +219,31 @@ int term_readline(char *str_line)
 	return len;
 }
 
+int term_set_old()
+{
+	if( tcsetattr(fileno(input), TCSANOW, &old_term) != 0 )
+	{
+		fprintf(stderr, "Could not set old attributes !\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+int term_set_new()
+{
+	if( tcsetattr(fileno(input), TCSANOW, &new_term) != 0 )
+	{
+		fprintf(stderr, "Could not set new attributes !\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 int term_quit()
 {
-	tcsetattr(fileno(input), TCSANOW, &init_term);
+	term_set_old();
 
 	fclose(input);
 	fclose(output);

@@ -25,7 +25,13 @@ int main(int argc, char **argv, char **env)
 		if( strcmp(str_command, "exit") != 0 )
 		{
 			process = command(str_command);
+
+			term_set_old();
+
 			process_run(process);
+
+			term_set_new();
+
 			process_destroy(process);
 		}
 
