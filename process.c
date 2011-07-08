@@ -211,13 +211,6 @@ int process_run(process_t *process)
 			{
 				term_set_control(session_pid);
 			}
-			else
-			{
-				int jobs_id;
-
-				jobs_id = jobs_add_process(process->filename_exec, session_pid);
-				jobs_print_process(jobs_id);
-			}
 
 			signal_set_for_process();
 
@@ -227,7 +220,7 @@ int process_run(process_t *process)
 			}
 			else
 			{
-				printf("exec session_pid %d\n", session_pid);
+				//printf("exec session_pid %d\n", session_pid);
 				process_exec(process);
 			}
 		break;
