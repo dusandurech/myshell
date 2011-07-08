@@ -11,6 +11,7 @@
 
 #include "process.h"
 #include "command.h"
+#include "inter_cmd.h"
 #include "terminal.h"
 #include "signal.h"
 
@@ -22,18 +23,17 @@ int main(int argc, char **argv, char **env)
 
 	signal_init();
 	term_init();
+	inter_cmd_init();
 
 	do{
 		term_print_status();
 		term_readline(str_command);
 
-		//fgets(str_command, STR_LINE_SIZE-1, stdin);
+		term_set_old();
 
-		if( strcmp(str_command, "exit") != 0 )
+		if( inter_cmd_exec(str_command) == 0 )
 		{
 			process = command(str_command);
-
-			term_set_old();
 
 			process_run(process);
 
@@ -42,12 +42,13 @@ int main(int argc, char **argv, char **env)
 				fprintf(stderr, "ERROR 2 !!!!!!!!!!!!!!!!!!!!\n");
 			}
 
-			term_set_new();
 
 			process_destroy(process);
 		}
 
-	}while( strcmp(str_command, "exit") != 0 );
+		term_set_new();
+
+	}while( inter_cmd_is_exit() == 0 );
 
 	term_quit();
 
