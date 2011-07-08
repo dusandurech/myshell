@@ -28,13 +28,40 @@ void handler_sig_ttou(int signo)
 	//fprintf(stderr, "get my control term: %d\n", tcgetpgrp(0) );
 }
 
-int signal_init()
+int signal_set_for_process()
+{
+	signal(SIGINT, SIG_DFL);
+	signal(SIGTTIN, SIG_DFL);
+	signal(SIGTTOU, SIG_DFL);
+	signal(SIGTSTP, SIG_DFL);
+
+	return 0;
+}
+
+int signal_set_for_shell()
 {
 	signal(SIGINT, handler_sig_int);
-	signal(SIGTSTP, handler_sig_stop);
 
 	signal(SIGTTIN, SIG_IGN);
 	signal(SIGTTOU, SIG_IGN);
+	signal(SIGTSTP, SIG_IGN);
+
+	return 0;
+}
+
+int signal_send_to_session(pid_t sessin_pid, int signum)
+{
+	return kill(-sessin_pid, signum);
+}
+
+int signal_send_to_process(pid_t process_pid, int signum)
+{
+	return kill(process_pid, signum);
+}
+
+int signal_init()
+{
+	signal_set_for_shell();
 
 	return 0;
 }

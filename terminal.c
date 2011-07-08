@@ -251,6 +251,20 @@ int term_set_new()
 	return 0;
 }
 
+int term_set_control(pid_t session_pid)
+{
+	int res;
+
+	res = tcsetpgrp(0, session_pid);
+
+	if( res != 0 )
+	{
+		fprintf(stderr, "set_control_term ERROR %d !!!!!!!!!!!!!!!!!!!!\n", res);
+	}
+
+	return res;
+}
+
 int term_get_file_fd()
 {
 	return fileno(input);

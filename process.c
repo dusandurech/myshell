@@ -4,6 +4,8 @@
 #include <string.h>
 #include <assert.h>
 
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -127,27 +129,32 @@ static int process_exec(process_t *process)
 	return res;
 }
 
-static int process_pipe(process_t *process, pid_t grp_pid)
+static pid_t create_session()
+{
+	pid_t session_pid;
+	pid_t process_pid;
+	
+	session_pid = getpid();
+	process_pid = getpid();
+
+	setpgid(process_pid, session_pid);
+
+	return session_pid;
+}
+
+static int add_to_session(pid_t process_pid, pid_t session_pid)
+{
+	setpgid(process_pid, session_pid);
+
+	return 0;
+}
+
+static int process_pipe(process_t *process, pid_t session_pid)
 {
 	int fd[2];
 	int status;
 
 	pipe(fd);
-
-	if( grp_pid == PROCESS_GPID_NONE )
-	{
-		grp_pid = getpid();
-		
-		setpgid(getpid(), grp_pid);
-
-		if( process->flag & PROCESS_NO_WAIT )
-		{
-			if( tcsetpgrp(0, grp_pid) != 0 )
-			{
-				fprintf(stderr, "ERROR !!!!!!!!!!!!!!!!!!!!\n");
-			}
-		}
-	}
 
 	switch( fork() )
 	{
@@ -158,17 +165,17 @@ static int process_pipe(process_t *process, pid_t grp_pid)
 
 			if( process->pipe_process != NULL && process->pipe_process->pipe_process != NULL )
 			{
-				process_pipe(process->pipe_process, grp_pid);
+				process_pipe(process->pipe_process, session_pid);
 			}
 			else
 			{
-				setpgid(getpid(), grp_pid);
+				add_to_session(getpid(), session_pid);
 				process_exec(process->pipe_process);
 			}
 		break;
 		
 		default :
-			setpgid(getpid(), grp_pid);
+			add_to_session(getpid(), session_pid);
 
 			close(0);
 			dup(fd[0]);
@@ -184,6 +191,7 @@ static int process_pipe(process_t *process, pid_t grp_pid)
 int process_run(process_t *process)
 {
 	pid_t pid;
+	pid_t session_pid;
 	int status;
 	int fd[2];
 
@@ -197,20 +205,57 @@ int process_run(process_t *process)
 		break;
 
 		case 0 :	// child
-			if( process->pipe_process != NULL )
+			session_pid = create_session();
+
+			if( ! ( process->flag & PROCESS_NO_WAIT ) )
 			{
-				process_pipe(process, PROCESS_GPID_NONE);
+				term_set_control(session_pid);
 			}
 			else
 			{
+				int jobs_id;
+
+				jobs_id = jobs_add_process(process->filename_exec, session_pid);
+				jobs_print_process(jobs_id);
+			}
+
+			signal_set_for_process();
+
+			if( process->pipe_process != NULL )
+			{
+				process_pipe(process, session_pid);
+			}
+			else
+			{
+				printf("exec session_pid %d\n", session_pid);
 				process_exec(process);
 			}
 		break;
 
 		default :	// parrent
+			session_pid = pid;		// ugly, hack :)
+
 			if( ! ( process->flag & PROCESS_NO_WAIT ) )
 			{
-				wait(&status);
+				//wait(&status);
+				waitpid(-1, &status, WUNTRACED|WCONTINUED);
+
+				if( WIFSTOPPED(status) )
+				{
+					int jobs_id;
+
+					printf("process stopeed\n");
+
+					jobs_id = jobs_add_process(process->filename_exec, session_pid);
+					jobs_print_process(jobs_id);
+				}
+			}
+			else
+			{
+				int jobs_id;
+
+				jobs_id = jobs_add_process(process->filename_exec, session_pid);
+				jobs_print_process(jobs_id);
 			}
 
 			if( process->flag & PROCESS_AND )

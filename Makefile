@@ -1,6 +1,6 @@
 CC = gcc
 FLAGS = -g -O0
-OBJ = array.o command.o dir.o inter_cmd.o main.o process.o regexp.o signal.o terminal.o util.o
+OBJ = array.o command.o dir.o inter_cmd.o jobs.o main.o process.o regexp.o signal.o terminal.o util.o
 OUT_BIN = myshell
 
 $(OUT_BIN): $(OBJ)
@@ -15,10 +15,14 @@ command.o: command.c main.h array.h dir.h process.h command.h
 dir.o: dir.c dir.h array.h
 	$(CC) $(FLAGS) -c dir.c
 
-inter_cmd.o: inter_cmd.c
+inter_cmd.o: inter_cmd.c main.h jobs.h inter_cmd.h
 	$(CC) $(FLAGS) -c inter_cmd.c
 
-main.o: main.c main.h process.h command.h terminal.h signal.h
+jobs.o: jobs.c main.h array.h jobs.h
+	$(CC) $(FLAGS) -c jobs.c
+
+main.o: main.c main.h process.h command.h inter_cmd.h terminal.h signal.h \
+  jobs.h
 	$(CC) $(FLAGS) -c main.c
 
 process.o: process.c main.h array.h dir.h process.h

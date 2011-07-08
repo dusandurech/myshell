@@ -14,6 +14,7 @@
 #include "inter_cmd.h"
 #include "terminal.h"
 #include "signal.h"
+#include "jobs.h"
 
 int main(int argc, char **argv, char **env)
 {
@@ -24,6 +25,7 @@ int main(int argc, char **argv, char **env)
 	signal_init();
 	term_init();
 	inter_cmd_init();
+	jobs_init();
 
 	do{
 		term_print_status();
@@ -36,21 +38,17 @@ int main(int argc, char **argv, char **env)
 			process = command(str_command);
 
 			process_run(process);
-
-			if( tcsetpgrp(0, getpid()) != 0 )
-			{
-				fprintf(stderr, "ERROR 2 !!!!!!!!!!!!!!!!!!!!\n");
-			}
-
-
 			process_destroy(process);
+
 		}
 
+		term_set_control(getpid());
 		term_set_new();
 
 	}while( inter_cmd_is_exit() == 0 );
 
 	term_quit();
+	jobs_quit();
 
 	return 0;
 }
