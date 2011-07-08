@@ -140,9 +140,12 @@ static int process_pipe(process_t *process, pid_t grp_pid)
 		
 		setpgid(getpid(), grp_pid);
 
-		if( tcsetpgrp(0, grp_pid) != 0 )
+		if( process->flag & PROCESS_NO_WAIT )
 		{
-			fprintf(stderr, "ERROR !!!!!!!!!!!!!!!!!!!!\n");
+			if( tcsetpgrp(0, grp_pid) != 0 )
+			{
+				fprintf(stderr, "ERROR !!!!!!!!!!!!!!!!!!!!\n");
+			}
 		}
 	}
 
