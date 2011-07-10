@@ -50,7 +50,7 @@ static int cmd_fg(const char *str_cmdline)
 
 static int cmd_bg(const char *str_cmdline)
 {
-	return cmd_jobs_run_abstract(str_cmdline, JOBS_RUN_IN_FG);
+	return cmd_jobs_run_abstract(str_cmdline, JOBS_RUN_IN_BG);
 }
 
 static int cmd_exit(const char *str_cmdline)
