@@ -38,6 +38,7 @@ typedef struct process_struct
 extern process_t* process_new();
 extern void process_set(process_t *process, char *filename_exec, char **param, char **env);
 extern void process_print(const process_t *process);
+extern int process_wait(const pid_t wait_pid, const char *cmd);
 extern int process_run(process_t *process);
 extern void process_destroy(process_t *process);
 

@@ -13,6 +13,7 @@
 
 #include "array.h"
 #include "dir.h"
+#include "jobs.h"
 
 #include "process.h"
 
@@ -33,6 +34,36 @@ void process_set(process_t *process, char *filename_exec, char **param, char **e
 	process->filename_exec = filename_exec;
 	process->param = param;
 	process->env = env;
+}
+
+static int do_process_to_string(process_t *process, char *str)
+{
+	int len;
+	int i;
+
+	len = 0;
+
+	if( process->pipe_process != NULL )
+	{
+		len += do_process_to_string(process->pipe_process, str);
+		len += sprintf(str+len, "| ");
+	}
+
+	for(i = 0; process->param[i] != NULL; i++)
+	{
+		len += sprintf(str+len, "%s ", process->param[i]);
+	}
+
+	return len;
+}
+
+char* process_to_string(process_t *process)
+{
+	static char str[STR_SIZE];
+
+	do_process_to_string(process, str);
+
+	return str;
 }
 
 void process_print(const process_t *process)
@@ -188,6 +219,75 @@ static int process_pipe(process_t *process, pid_t session_pid)
 	return 0;
 }
 
+int process_wait(const pid_t wait_pid, const char *cmd)
+{
+	pid_t ret_pid;
+	int status;
+
+	do{
+		//printf("wait in process\n");
+		ret_pid = waitpid(-1, &status, WUNTRACED|WCONTINUED);
+		//printf("wait pid = %d\n", ret_pid);
+
+		if( WIFSTOPPED(status) )
+		{
+			int jobs_id;
+	
+			printf("Process stopeed\n");
+	
+			jobs_id = jobs_add_process(cmd, ret_pid, JOBS_STAT_STOP);
+			jobs_print_process(jobs_id);
+		}
+
+		if( WIFCONTINUED(status) )
+		{
+			int jobs_id;
+	
+			if( ret_pid != wait_pid )
+			{
+				printf("Process continued\n");
+			}
+
+			jobs_id = jobs_add_process(cmd, ret_pid, JOBS_STAT_RUN);
+			jobs_print_process(jobs_id);
+
+			ret_pid = -1;
+
+			continue;
+		}
+
+		if( WIFEXITED(status) )
+		{
+			if( ret_pid != wait_pid )
+			{
+				int exit_status;
+	
+				exit_status = WEXITSTATUS(status);
+				printf("Process exited %d\n", exit_status);
+			}
+
+			jobs_clean_process(ret_pid);
+		}
+
+		if( WIFSIGNALED(status) )
+		{
+
+			if( ret_pid != wait_pid )
+			{
+				int signum;
+	
+				signum = WTERMSIG(status);
+				printf("Process killed by signal %d\n", signum);
+			}
+
+			jobs_clean_process(ret_pid);
+		}
+
+	}while( ret_pid != wait_pid );
+
+	return status;
+}
+
 int process_run(process_t *process)
 {
 	pid_t pid;
@@ -195,7 +295,10 @@ int process_run(process_t *process)
 	int status;
 	int fd[2];
 
-	//memcpy(process->next_process->fd, fd, sizeof(fd));
+	if( process == NULL )
+	{
+		return;
+	}
 
 	switch( ( pid = fork() ) )
 	{
@@ -220,7 +323,6 @@ int process_run(process_t *process)
 			}
 			else
 			{
-				//printf("exec session_pid %d\n", session_pid);
 				process_exec(process);
 			}
 		break;
@@ -230,24 +332,13 @@ int process_run(process_t *process)
 
 			if( ! ( process->flag & PROCESS_NO_WAIT ) )
 			{
-				//wait(&status);
-				waitpid(-1, &status, WUNTRACED|WCONTINUED);
-
-				if( WIFSTOPPED(status) )
-				{
-					int jobs_id;
-
-					printf("process stopeed\n");
-
-					jobs_id = jobs_add_process(process->filename_exec, session_pid);
-					jobs_print_process(jobs_id);
-				}
+				status = process_wait(session_pid, process_to_string(process));
 			}
 			else
 			{
 				int jobs_id;
 
-				jobs_id = jobs_add_process(process->filename_exec, session_pid);
+				jobs_id = jobs_add_process(process->filename_exec, session_pid, JOBS_STAT_RUN);
 				jobs_print_process(jobs_id);
 			}
 
@@ -255,23 +346,17 @@ int process_run(process_t *process)
 			{
 				if( status == 0 )
 				{
-					if( process->next_process != NULL )
-					{
-						process_run(process->next_process);
-					}
+					process_run(process->next_process);
 				}
 			}
 			else if( process->flag & PROCESS_OR )
 			{
 				if( status != 0 )
 				{
-					if( process->next_process != NULL )
-					{
-						process_run(process->next_process);
-					}
+					process_run(process->next_process);
 				}
 			}
-			else if( process->next_process != NULL )
+			else
 			{
 				process_run(process->next_process);
 			}
