@@ -167,8 +167,6 @@ int term_init()
 	
 	term_set_new();
 
-	printf("get my control term: %d\n", tcgetpgrp(0) );
-
 	return 0;
 }
 
