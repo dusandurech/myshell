@@ -13,13 +13,11 @@
 void handler_sig_int(int signo)
 {
 	fprintf(stdout, "Signal INT\n");
-	fprintf(stdout, "get my control term: %d\n", tcgetpgrp(0) );
 }
 
 void handler_sig_stop(int signo)
 {
 	fprintf(stdout, "Signal SIGTSTP\n");
-	fprintf(stdout, "get my control term: %d\n", tcgetpgrp(0) );
 }
 
 void handler_sig_ttou(int signo)
@@ -46,6 +44,12 @@ int signal_set_for_shell()
 	signal(SIGTTOU, SIG_IGN);
 	signal(SIGTSTP, SIG_IGN);
 
+	return 0;
+}
+
+int signal_set_handler(int signum, void (*fce)(int signum))
+{
+	signal(signum, fce);
 	return 0;
 }
 
