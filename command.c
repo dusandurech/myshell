@@ -8,6 +8,7 @@
 
 #include "main.h"
 
+#include "env.h"
 #include "array.h"
 #include "dir.h"
 
@@ -208,7 +209,7 @@ process_t* command(char *str_command)
 		if( process != NULL && ( s == NULL || strcmp(s, ";") == 0 || strcmp(s, "|") == 0 ||
 					 strcmp(s, "&&") == 0 || strcmp(s, "||") == 0 || strcmp(s, "&") == 0) )
 		{
-			process_set(process, filename_exec, (char **)array_get_clone_array(array_arg, strdup), NULL);
+			process_set(process, filename_exec, (char **)array_get_clone_array(array_arg, strdup), env_import());
 
 			filename_exec = NULL;
 			//array_print_string(array_arg);
