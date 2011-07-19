@@ -4,49 +4,10 @@
 #include <string.h>
 
 #include "main.h"
+#include "automat.h"
 #include "regexp.h"
 
 #define ALPHABET_COUNT	(126-32+1)
-
-static int get_count_status(const char *str_regexp)
-{
-	int len;
-	int count;
-	int i;
-	int flag;
-
-	char c;
-	char c_prev;
-
-	count = 0;
-	len = strlen(str_regexp);
-	c_prev = '\0';
-	flag = 1;
-
-	for(i = 0; i < len; i++)
-	{
-		c = str_regexp[i];
-
-		if( c_prev != '\\' &&  c == '[' )
-		{
-			flag = 0;
-		}
-
-		if( c_prev != '\\' &&  c == ']' )
-		{
-			flag = 1;
-		}
-
-		if( flag == 1 && c_prev != '\\' &&  c != '*' )
-		{
-			count++;
-		}
-
-		c_prev = c;
-	}
-
-	return count+1;
-}
 
 static int** get_matrix(const int count_status)
 {
@@ -81,100 +42,171 @@ static int get_alphabet_id(const char c)
 	return c - ' ';
 }
 
+static int regexp_range(automat_t *automat, int current_status, char c)
+{
+	static char range_first = '\0';
+	static char prev_c = '\0';
+	static char line_prev_c = '\0';
+	static int line_flag = 0;
+	int id;
+	int i;
+
+	//printf("prev_c = %c c = %c\n", prev_c, c);
+
+	if(  prev_c != '\\' && c == '\\' )
+	{
+		prev_c = c;
+		return 1;
+	}
+
+	if( prev_c == '\\' )
+	{
+		prev_c = c;
+
+		if( c == '\\' )
+		{
+			prev_c = '\0';
+		}
+		
+		if( line_flag == 0 )
+		{
+			id = get_alphabet_id(c);
+			automat->matrix[current_status][1+id] = current_status+1;
+
+			return 1;
+		}
+	}
+
+	if( line_flag == 0 && c == '[' )
+	{
+		prev_c = '\0';
+		range_first = '\0';
+		line_flag = 0;
+
+		return 1;
+	}
+
+	if( range_first == '\0' )
+	{
+		range_first = c;
+
+		if( range_first == '!' || range_first == '^' )
+		{
+			return 1;
+		}
+	}
+
+	if( line_flag == 0 && c == ']' )
+	{
+		if( range_first == '!' || range_first == '^' )
+		{
+			for(i = 0; i < ALPHABET_COUNT; i++)
+			{
+				if( automat->matrix[current_status][1+i] == -1 )
+				{
+					automat->matrix[current_status][1+i] = current_status+1;
+				}
+				else
+				{
+					automat->matrix[current_status][1+i] = -1;
+				}
+			}
+		}
+
+		return 0;
+	}
+
+	if( line_flag == 0 && c == '-' )
+	{
+		line_prev_c = prev_c;
+		line_flag = 1;
+
+		return 1;
+	}
+
+	if( line_flag == 1 )
+	{
+		int prev_id;
+		int next_id;
+
+		prev_id = get_alphabet_id(line_prev_c);
+		next_id = get_alphabet_id(c);
+		line_flag = 0;
+
+		for(i = prev_id; i <= next_id; i++)
+		{
+			automat->matrix[current_status][1+i] = current_status+1;
+		}
+
+		return 1;
+	}
+
+	id = get_alphabet_id(c);
+	automat->matrix[current_status][1+id] = current_status+1;
+	prev_c = c;
+
+	return 1;
+}
+
+static void regexp_normal_char(automat_t *automat, int current_status, int last, char c)
+{
+	int id;
+	int i;
+
+	for(i = 0; i < ALPHABET_COUNT; i++)
+	{
+		automat->matrix[current_status][1+i] = last;
+	}
+
+	id = get_alphabet_id(c);
+	automat->matrix[current_status][1+id] = current_status+1;
+}
+
 static void gen_matrix(automat_t *automat, const char *str_regexp)
 {
 	int last;
 	int len;
 	int i;
 	int current_status;
-	int in_range;
-	char range_first;
+	char pair;
+	int id;
 
 	len = strlen(str_regexp);
 	last = -1;
+	pair = '\0';
 	current_status  = 0;
-	in_range = 0;
-	range_first = '\0';
 
 	for(i = 0; i < len; i++)
 	{
 		char c;
 		int j;
-		int id;
 
 		c = str_regexp[i];
 
 		//printf("c = %c\n", c);
 
-		if( in_range == 1 )
+		if( pair == '\'' || pair == '\"' )
 		{
-			if( range_first == '\0' )
+			if( pair == c )
 			{
-				range_first = c;
-
-				if( range_first == '!' || range_first == '^' )
-				{
-					continue;
-				}
+				pair = '\0';
 			}
-
-			if( c == ']' )
+			else
 			{
-				if( range_first == '!' || range_first == '^' )
-				{
-					for(j = 0; j < ALPHABET_COUNT; j++)
-					{
-						if( automat->matrix[current_status][1+j] == -1 )
-						{
-							automat->matrix[current_status][1+j] = current_status+1;
-						}
-						else
-						{
-							automat->matrix[current_status][1+j] = -1;
-						}
-					}
-				}
-
+				regexp_normal_char(automat, current_status, last, c);
 				current_status++;
-				in_range = 0;
-
-				continue;
 			}
 
-			if( c == '-' )
+			continue;
+		}
+
+		if( pair == '[' )
+		{
+			if( ! regexp_range(automat, current_status, c) )
 			{
-				char prev_c;
-				char next_c;
-
-				int prev_id;
-				int next_id;
-
-				prev_c = str_regexp[i-1];
-				next_c = str_regexp[++i];
-
-				if( next_c == '\\' )
-				{
-					next_c = str_regexp[++i];
-				}
-
-				prev_id = get_alphabet_id(prev_c);
-				next_id = get_alphabet_id(next_c);
-
-				for(j = prev_id; j <= next_id; j++)
-				{
-					automat->matrix[current_status][1+j] = current_status+1;
-				}
-
-				continue;
+				pair = '\0';
+				current_status++;
 			}
-
-			if( c == '\\' )
-			{
-				c = str_regexp[++i];
-			}
-
-			id = get_alphabet_id(c);
-			automat->matrix[current_status][1+id] = current_status+1;
 
 			continue;
 		}
@@ -182,6 +214,8 @@ static void gen_matrix(automat_t *automat, const char *str_regexp)
 		switch(c)
 		{
 			case '?' :
+				automat->map[i] = current_status;
+
 				for(j = 0; j < ALPHABET_COUNT; j++)
 				{
 					automat->matrix[current_status][1+j] = current_status+1;
@@ -191,31 +225,53 @@ static void gen_matrix(automat_t *automat, const char *str_regexp)
 			break;
 
 			case '*' :
+				automat->map[i] = current_status;
 				last = current_status;
+
+				if( i == len-1 )
+				{
+					int j;
+
+					for(j = 0; j < ALPHABET_COUNT; j++)
+					{
+						automat->matrix[current_status-1][1+j] = current_status;
+					}
+				}
 			break;
 
 			case '[' :
-				in_range = 1;
+				pair = c;
+				automat->map[i] = current_status;
+				regexp_range(automat, current_status, c);
+			break;
+
+			case '\"' :
+			case '\'' :
+				pair = c;
 			break;
 
 			case '\\' :
+				automat->map[i] = current_status;
+				c = str_regexp[++i];
 
 			default :
-				for(j = 0; j < ALPHABET_COUNT; j++)
-				{
-					automat->matrix[current_status][1+j] = last;
-				}
-
-				id = get_alphabet_id(c);
-				automat->matrix[current_status][1+id] = current_status+1;
+				automat->map[i] = current_status;
+				regexp_normal_char(automat, current_status, last, c);
 				current_status++;
 			break;
 		}
 	}
+}
 
-	for(i = 0; i < ALPHABET_COUNT; i++)
+static void init_map(automat_t *automat)
+{
+	int i;
+
+	automat->map = (int *)malloc(automat->len_regexp * sizeof(int) );
+
+	for(i = 0; i < automat->len_regexp; i++)
 	{
-		automat->matrix[current_status][1+i] = current_status;
+		automat->map[i] = -1;
 	}
 }
 
@@ -224,12 +280,26 @@ automat_t* automat_new(const char *str_regexp)
 	automat_t *automat;
 
 	automat = (automat_t *) malloc( sizeof(automat_t) );
+	automat->str_regexp = strdup(str_regexp);
+	automat->len_regexp = strlen(str_regexp);
 	automat->count_status = get_count_status(str_regexp);
 	automat->current_status = 0;
 	automat->matrix = get_matrix(automat->count_status);
+
+	init_map(automat);
 	gen_matrix(automat, str_regexp);
 
 	return automat;
+}
+
+int automat_get_current_status(const automat_t *automat)
+{
+	return automat->current_status;
+}
+
+void automat_set_current_status(automat_t *automat, const int status)
+{
+	automat->current_status = status;
 }
 
 void automat_reset(automat_t *automat)
@@ -237,10 +307,50 @@ void automat_reset(automat_t *automat)
 	automat->current_status = 0;
 }
 
+char* automat_get_regexp(automat_t *automat)
+{
+	return automat->str_regexp;
+}
+
+char* automat_get_curent_regexp(const automat_t *automat)
+{
+	int len;
+	int i;
+
+	if( automat->current_status == -1 )
+	{
+		return NULL;
+	}
+
+	for(i = 0; i < automat->len_regexp; i++)
+	{
+		if( automat->map[i] == automat->current_status )
+		{
+			return automat->str_regexp+i;
+		}
+	}
+
+	return NULL;
+}
+
 void automat_print(const automat_t *automat)
 {
 	int i;
 	int j;
+
+	printf("regexp: %s\n", automat->str_regexp);
+
+	printf("map: ");
+
+	for(i = 0; i < automat->len_regexp; i++)
+	{
+		if( automat->map[i] != -1 )
+		{
+			printf("[%d -> \'%c\'] ", automat->map[i], automat->str_regexp[i]);
+		}
+	}
+
+	putchar('\n');
 
 	putchar(' ');
 
@@ -271,7 +381,7 @@ void automat_print(const automat_t *automat)
 
 int automat_is_final_status(const automat_t *automat)
 {
-	if( automat->current_status == automat->count_status-1 )
+	if( automat->current_status == automat->count_status )
 	{
 		return 1;
 	}
@@ -300,9 +410,28 @@ void automat_step(automat_t *automat, const char c)
 	automat->current_status = automat->matrix[automat->current_status][1+id];
 }
 
+void automat_steps_for_string(automat_t *automat, const char *str)
+{
+	int len;
+	int res;
+	int i;
+
+	len = strlen(str);
+
+	for(i = 0; i < len; i++)
+	{
+		char c;
+
+		c = str[i];
+		automat_step(automat, c);
+	}
+}
+
 int automat_destroy(automat_t *automat)
 {
 	int i;
+
+	free(automat->str_regexp);
 
 	for(i = 0; i < automat->count_status; i++)
 	{
@@ -310,6 +439,7 @@ int automat_destroy(automat_t *automat)
 	}
 
 	free(automat->matrix);
+	free(automat->map);
 	free(automat);
 }
 
@@ -327,25 +457,47 @@ int regexp(automat_t *automat, const char *str)
 
 		c = str[i];
 		automat_step(automat, c);
-	}
 
-	res = automat_is_final_status(automat);
+		res = automat_is_final_status(automat);
+
+		if( res )
+		{
+			automat_reset(automat);
+			return 1;
+		}
+	}
 
 	automat_reset(automat);
 
 	return res;
 }
 
+//#define TEST_REGEXP
 #ifdef TEST_REGEXP
 int main()
 {
 	automat_t *automat;
 
-	automat = automat_new("a[a-zABC0-9]d*e?f");
+	//automat = automat_new("a?b[\\a-\\zABC0-9\\\\]d\\*e[^*?\"\'!^]g");
+	automat = automat_new("a?b[\\a-\\zABC0-9\\X\\\\]d\\*e[^*?\"\'!^]g");
+	//automat = automat_new("b[\\\\]d");
 	automat_print(automat);
+	printf("res = %d\n", regexp(automat, "axbcd*efg"));
+	automat_destroy(automat);
 
-	printf("res = %d\n", regexp(automat, "aAdbexf"));
+	automat = automat_new("ab\"cd*?ef\"gh");
+	automat_print(automat);
+	printf("res = %d\n", regexp(automat, "abcd*?efgh"));
+	automat_destroy(automat);
 
+	automat = automat_new("ab*cdef");
+	automat_print(automat);
+	printf("res = %d\n", regexp(automat, "abcdxcdef"));
+	automat_destroy(automat);
+
+	automat = automat_new("abc*");
+	automat_print(automat);
+	printf("res = %d\n", regexp(automat, "abcd"));
 	automat_destroy(automat);
 
 	return 0;
