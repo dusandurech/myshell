@@ -12,6 +12,9 @@
 #include "array.h"
 #include "dir.h"
 
+#include "expand_var.h"
+#include "expand_regexp.h"
+
 #include "process.h"
 #include "command.h"
 
@@ -98,7 +101,8 @@ static array_t* get_words(const char *str_commandline)
 			if( word[0] != '\0' && pair == '\0'  )
 			{
 				//printf("add world >%s<\n", word);
-				array_add(array, strdup(word) );
+				expand_regexp(word, array);
+				//array_add(array, strdup(word) );
 				memset(word, 0, STR_SIZE);
 			}
 		}
@@ -108,12 +112,14 @@ static array_t* get_words(const char *str_commandline)
 		}
 	}
 
+#if 0
 	for(i = 0; i < array->count; i++)
 	{
 		char *s = (char *) array_get(array, i);
 
-		//printf(">%s<\n", s);
+		printf(">%s<\n", s);
 	}
+#endif
 
 	return array;
 }
@@ -168,12 +174,14 @@ process_t* command(char *str_command)
 	process_t *process_main;
 
 	char *filename_exec;
+	char *str_command_expand;
 	array_t *array;
 	array_t *array_arg;
 	int i;
 	int prev_op;
 
-	array = get_words(str_command);
+	str_command_expand = expand_var(str_command);
+	array = get_words(str_command_expand);
 
 	array_arg = array_new();
 
