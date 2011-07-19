@@ -14,17 +14,17 @@ dir_t* dir_new(const char *dirname)
 	struct dirent *item;
 	dir_t *my_dir;
 
-	my_dir = (dir_t *) malloc( sizeof(dir_t) );
-	my_dir->path = strdup(dirname);
-	my_dir->item = array_new();
-
 	dir = opendir(dirname);
 
 	if( dir == NULL )
 	{
-		fprintf(stderr, "Path %s can not load\n", dirname);
+		//fprintf(stderr, "Path %s can not load\n", dirname);
 		return NULL;
 	}
+
+	my_dir = (dir_t *) malloc( sizeof(dir_t) );
+	my_dir->path = strdup(dirname);
+	my_dir->item = array_new();
 
 	while( ( item = readdir(dir) ) != NULL )
 	{
