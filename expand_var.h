@@ -3,6 +3,6 @@
 
 #define EXPAND_VAR_H
 
-extern char* expand_var(char *str_commandline);
+extern char* expand_var(const char *str_commandline);
 
 #endif

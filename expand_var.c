@@ -19,7 +19,7 @@ static int isAlphabet(char c)
 	       ( c >= '0' && c <= '9' );
 }
 
-char* expand_var(char *str_commandline)
+char* expand_var(const char *str_commandline)
 {
 	static char str[STR_LINE_SIZE];
 	char varname[STR_SIZE];
@@ -30,7 +30,7 @@ char* expand_var(char *str_commandline)
 	char pair;
 	int capVar;
 
-	printf("str_commandline >%s<\n", str_commandline);
+	//printf("str_commandline >%s<\n", str_commandline);
 
 	memset(varname, 0, STR_SIZE);
 	memset(str, 0, STR_LINE_SIZE);
@@ -39,7 +39,7 @@ char* expand_var(char *str_commandline)
 	capVar = 0;
 	count = 0;
 
-	for(i = 0; i < len; i++)
+	for(i = 0; i <= len; i++)
 	{
 		char c;
 
