@@ -7,17 +7,27 @@
 #include "array.h"
 #include "dir.h"
 #include "automat.h"
+#include "util.h"
 #include "regexp.h"
 
 static void do_expand_regexp(automat_t *automat, char *line, array_t *array)
 {
 	dir_t *dir;
+	char *current_regexp;
 	int status_begin;
 	int i;
 
 	//printf("call %s\n", line);
 
+	current_regexp = (char *) automat_get_curent_regexp(automat);
 	status_begin = automat_get_current_status(automat);
+
+	//printf("first line = %s >%s<\n", line, automat_get_curent_regexp(automat));
+
+	if( automat_get_current_status(automat) == -1 )
+	{
+		return;
+	}
 
 	if( line[0] == '\0' )
 	{
@@ -33,10 +43,18 @@ static void do_expand_regexp(automat_t *automat, char *line, array_t *array)
 		return;
 	}
 
+	if( current_regexp[0] == '\0' )
+	{
+		//printf("FIN\n");
+		array_add(array, strdup(line));
+		return;
+	}
+
 	for(i = 0; i < dir->item->count; i++)
 	{
-		char *current_regexp = (char *) automat_get_curent_regexp(automat);
 		char *s = (char *) array_get(dir->item, i);
+
+		current_regexp = (char *) automat_get_curent_regexp(automat);
 
 		if(  current_regexp[0] == '.' )
 		{
@@ -87,6 +105,8 @@ static void do_expand_regexp(automat_t *automat, char *line, array_t *array)
 			int status_prev;
 			int status_next;
 
+			//printf("line = %s >%s<\n", line, automat_get_curent_regexp(automat));
+
 			status_prev = automat_get_current_status(automat);
 			automat_step(automat, '/');
 			status_next = automat_get_current_status(automat);
@@ -95,8 +115,11 @@ static void do_expand_regexp(automat_t *automat, char *line, array_t *array)
 			{
 				int len;
 	
+				//printf("status_next = %d\n", status_next);
 				len = strlen(line);
 				append_file_to_path(line, s);
+				strcat(line, "/");
+				//printf("line = %s >%s<\n", line, automat_get_curent_regexp(automat));
 				do_expand_regexp(automat, line, array);
 				line[len] = '\0';
 	
@@ -150,7 +173,7 @@ int main()
 	array_t *array;
 
 	array = array_new();
-	expand_regexp("./o*/*.c", array);
+	expand_regexp("*.c", array);
 
 	array_print_string(array);
 	array_destroy(array);
