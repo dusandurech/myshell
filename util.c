@@ -65,3 +65,29 @@ char* get_current_dir()
 
 	return path;
 }
+
+void append_file_to_path(char *path, char *filename)
+{
+	int len;
+	char c;
+
+	//printf("append_file_to_path %s %s\n", path, filename);
+
+	len = strlen(path);
+
+	if( len == 0 )
+	{
+		strcpy(path, filename);
+		return;
+	}
+
+	c = path[len-1];
+
+	if( c != '/' )
+	{
+		c = '/';
+		strncat(path, &c, 1);
+	}
+
+	strcat(path, filename);
+}
