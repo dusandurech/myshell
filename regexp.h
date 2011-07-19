@@ -10,6 +10,7 @@ typedef struct automat_struct
 	int *map;
 	int count_status;
 	int current_status;
+	int accept_status;
 	int **matrix;
 } automat_t;
 

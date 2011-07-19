@@ -221,11 +221,13 @@ static void gen_matrix(automat_t *automat, const char *str_regexp)
 					automat->matrix[current_status][1+j] = current_status+1;
 				}
 
+				automat->accept_status = current_status+1;
 				current_status++;
 			break;
 
 			case '*' :
 				automat->map[i] = current_status;
+				automat->accept_status = current_status;
 				last = current_status;
 
 				if( i == len-1 )
@@ -234,7 +236,7 @@ static void gen_matrix(automat_t *automat, const char *str_regexp)
 
 					for(j = 0; j < ALPHABET_COUNT; j++)
 					{
-						automat->matrix[current_status-1][1+j] = current_status;
+						automat->matrix[current_status][1+j] = current_status;
 					}
 				}
 			break;
@@ -242,6 +244,7 @@ static void gen_matrix(automat_t *automat, const char *str_regexp)
 			case '[' :
 				pair = c;
 				automat->map[i] = current_status;
+				automat->accept_status = current_status+1;
 				regexp_range(automat, current_status, c);
 			break;
 
@@ -257,6 +260,7 @@ static void gen_matrix(automat_t *automat, const char *str_regexp)
 			default :
 				automat->map[i] = current_status;
 				regexp_normal_char(automat, current_status, last, c);
+				automat->accept_status = current_status+1;
 				current_status++;
 			break;
 		}
@@ -282,7 +286,7 @@ automat_t* automat_new(const char *str_regexp)
 	automat = (automat_t *) malloc( sizeof(automat_t) );
 	automat->str_regexp = strdup(str_regexp);
 	automat->len_regexp = strlen(str_regexp);
-	automat->count_status = get_count_status(str_regexp);
+	automat->count_status = get_count_status(str_regexp)+1;
 	automat->current_status = 0;
 	automat->matrix = get_matrix(automat->count_status);
 
@@ -330,7 +334,7 @@ char* automat_get_curent_regexp(const automat_t *automat)
 		}
 	}
 
-	return NULL;
+	return "";
 }
 
 void automat_print(const automat_t *automat)
@@ -351,6 +355,8 @@ void automat_print(const automat_t *automat)
 	}
 
 	putchar('\n');
+
+	printf("accept status = %d\n", automat->accept_status);
 
 	putchar(' ');
 
@@ -381,7 +387,7 @@ void automat_print(const automat_t *automat)
 
 int automat_is_final_status(const automat_t *automat)
 {
-	if( automat->current_status == automat->count_status )
+	if( automat->current_status == automat->accept_status )
 	{
 		return 1;
 	}
@@ -445,28 +451,10 @@ int automat_destroy(automat_t *automat)
 
 int regexp(automat_t *automat, const char *str)
 {
-	int len;
 	int res;
-	int i;
 
-	len = strlen(str);
-
-	for(i = 0; i < len; i++)
-	{
-		char c;
-
-		c = str[i];
-		automat_step(automat, c);
-
-		res = automat_is_final_status(automat);
-
-		if( res )
-		{
-			automat_reset(automat);
-			return 1;
-		}
-	}
-
+	automat_steps_for_string(automat, str);
+	res = automat_is_final_status(automat);
 	automat_reset(automat);
 
 	return res;
@@ -495,9 +483,9 @@ int main()
 	printf("res = %d\n", regexp(automat, "abcdxcdef"));
 	automat_destroy(automat);
 
-	automat = automat_new("abc*");
+	automat = automat_new("*");
 	automat_print(automat);
-	printf("res = %d\n", regexp(automat, "abcd"));
+	printf("res = %d\n", regexp(automat, "abc"));
 	automat_destroy(automat);
 
 	return 0;
