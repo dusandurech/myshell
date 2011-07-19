@@ -12,12 +12,35 @@ char** env_import()
 
 char* env_get(const char *name)
 {
-	return getenv(name);
+	char *value;
+
+	value = getenv(name);
+
+	if( value == NULL )
+	{
+		return NULL;
+	}
+
+	return value;
 }
 
 int env_set(const char *name, const char *value)
 {
 	return setenv(name, value, 1);
+}
+
+int env_is_set(const char *name)
+{
+	char *value;
+
+	value = getenv(name);
+
+	if( value == NULL )
+	{
+		return 1;
+	}
+
+	return 0;
 }
 
 int env_unset(const char *name)
