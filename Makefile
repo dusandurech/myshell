@@ -1,6 +1,6 @@
 CC = gcc
 FLAGS = -g -O0
-OBJ = array.o automat.o command.o dir.o env.o expand_regexp.o expand_var.o inter_cmd.o jobs.o main.o process.o regexp.o signal.o terminal.o util.o
+OBJ = array.o automat.o command.o dir.o env.o expand_regexp.o expand_var.o history.o inter_cmd.o jobs.o main.o process.o regexp.o signal.o terminal.o util.o
 OUT_BIN = myshell
 
 $(OUT_BIN): $(OBJ)
@@ -12,7 +12,8 @@ array.o: array.c array.h
 automat.o: automat.c main.h automat.h
 	$(CC) $(FLAGS) -c automat.c
 
-command.o: command.c main.h env.h array.h dir.h process.h command.h
+command.o: command.c main.h env.h array.h dir.h expand_var.h \
+  expand_regexp.h process.h command.h
 	$(CC) $(FLAGS) -c command.c
 
 dir.o: dir.c dir.h array.h
@@ -21,11 +22,15 @@ dir.o: dir.c dir.h array.h
 env.o: env.c
 	$(CC) $(FLAGS) -c env.c
 
-expand_regexp.o: expand_regexp.c main.h array.h dir.h automat.h regexp.h
+expand_regexp.o: expand_regexp.c main.h array.h dir.h automat.h util.h \
+  regexp.h
 	$(CC) $(FLAGS) -c expand_regexp.c
 
 expand_var.o: expand_var.c main.h env.h array.h expand_var.h
 	$(CC) $(FLAGS) -c expand_var.c
+
+history.o: history.c main.h env.h array.h
+	$(CC) $(FLAGS) -c history.c
 
 inter_cmd.o: inter_cmd.c main.h jobs.h inter_cmd.h
 	$(CC) $(FLAGS) -c inter_cmd.c

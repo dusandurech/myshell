@@ -8,6 +8,7 @@
 #include "main.h"
 
 #include "util.h"
+#include "history.h"
 #include "terminal.h"
 
 static FILE *input;
@@ -97,6 +98,58 @@ static void backspace()
 	}
 
 	fputc('\10', stdout);
+}
+
+static void set_string_from_history()
+{
+	char *str;
+	int my_len;
+	int i;
+
+	str = history_get_select();
+
+	//printf("str = >%s<\n", str);
+
+	if( str == NULL )
+	{
+		return;
+	}
+
+	my_len = strlen(str);
+
+	while( offset < len )
+	{
+		move_right();
+	}
+
+	while( len > 0 )
+	{
+		backspace();
+	}
+
+	for(i = 0; i < my_len; i++)
+	{
+		char c;
+
+		c = str[i];
+		append(c);
+	}
+}
+
+static void move_up()
+{
+	if( history_up() )
+	{
+		set_string_from_history();
+	}
+}
+
+static void move_down()
+{
+	if( history_down() )
+	{
+		set_string_from_history();
+	}
 }
 
 static char* get_current_short_dir()
@@ -196,6 +249,7 @@ int term_readline(char *str_line)
 
 			case 127 :
 				backspace();
+				history_backup_current_line(line);
 			break;
 
 			case 27 :
@@ -204,11 +258,22 @@ int term_readline(char *str_line)
 					case 91 :
 						switch( (c = fgetc(input)) )
 						{
+							case 65 :
+								move_up();
+							break;
+							case 66 :
+								move_down();
+							break;
+
 							case 68 :
 								move_left();
 							break;
 							case 67 :
 								move_right();
+							break;
+
+							default:
+								//printf("c = %d\n", c);
 							break;
 						}
 					break;
@@ -218,9 +283,13 @@ int term_readline(char *str_line)
 			default :
 				//printf("c = %d\n", c);
 				append(c);
+				history_backup_current_line(line);
 			break;
 		}
 	}while( c != '\n' );
+
+	history_add(line);
+	history_backup_current_line("");
 
 	memcpy(str_line, line, len+1);
 

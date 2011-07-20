@@ -13,6 +13,7 @@
 #include "command.h"
 #include "inter_cmd.h"
 #include "terminal.h"
+#include "history.h"
 #include "signal.h"
 #include "jobs.h"
 
@@ -22,10 +23,13 @@ int main(int argc, char **argv, char **env)
 
 	process_t *process;
 
+	history_init();
 	signal_init();
 	term_init();
 	inter_cmd_init();
 	jobs_init();
+
+	history_load();
 
 	do{
 		term_print_status();
@@ -47,6 +51,9 @@ int main(int argc, char **argv, char **env)
 
 	}while( inter_cmd_is_exit() == 0 );
 
+	history_save();
+
+	history_quit();
 	term_quit();
 	jobs_quit();
 
