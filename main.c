@@ -13,6 +13,7 @@
 #include "command.h"
 #include "inter_cmd.h"
 #include "terminal.h"
+#include "readline.h"
 #include "history.h"
 #include "signal.h"
 #include "jobs.h"
@@ -32,8 +33,8 @@ int main(int argc, char **argv, char **env)
 	history_load();
 
 	do{
-		term_print_status();
-		term_readline(str_command);
+		readline_print_status();
+		readline(str_command);
 
 		term_set_old();
 
@@ -41,9 +42,11 @@ int main(int argc, char **argv, char **env)
 		{
 			process = command(str_command);
 
-			process_run(process);
-			process_destroy(process);
-
+			if( process != NULL )
+			{
+				process_run(process);
+				process_destroy(process);
+			}
 		}
 
 		term_set_control(getpid());

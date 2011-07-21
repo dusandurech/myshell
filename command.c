@@ -204,8 +204,9 @@ process_t* command(char *str_command)
 
 			if( filename_exec == NULL )
 			{
-				printf("filename_exec = %s\n", s);
+				//printf("filename_exec = %s\n", s);
 				fprintf(stderr, "Command not found !\n");
+				return NULL;
 			}
 
 			process = process_new();

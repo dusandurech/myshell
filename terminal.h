@@ -4,8 +4,11 @@
 #define TERMINAL_H
 
 extern int term_init();
-extern void term_print_status();
-extern int term_readline(char *str_line);
+extern void term_cursor_left();
+extern void term_cursor_right();
+extern void term_putc(char c);
+extern void term_puts(char *s);
+extern int term_getc();
 extern int term_set_old();
 extern int term_set_new();
 extern int term_set_control(pid_t session_pid);
