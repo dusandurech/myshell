@@ -10,9 +10,10 @@ echo 'CC = gcc' >> $OUTPUT_MAKEFILE
 echo 'FLAGS = -g -O0' >> $OUTPUT_MAKEFILE
 echo 'OBJ =' ${SOURCE_CODE//".c"/".o"} >> $OUTPUT_MAKEFILE
 echo 'OUT_BIN = myshell' >> $OUTPUT_MAKEFILE
+echo 'LIBS = -ltermcap' >> $OUTPUT_MAKEFILE
 echo >> $OUTPUT_MAKEFILE
 echo '$(OUT_BIN): $(OBJ)' >> $OUTPUT_MAKEFILE
-echo -e '\011$(CC) $(FLAGS) -o $(OUT_BIN) $(OBJ)' >> $OUTPUT_MAKEFILE
+echo -e '\011$(CC) $(FLAGS) -o $(OUT_BIN) $(OBJ) $(LIBS)' >> $OUTPUT_MAKEFILE
 echo >> $OUTPUT_MAKEFILE
 
 for FILE in $SOURCE_CODE

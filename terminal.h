@@ -4,8 +4,8 @@
 #define TERMINAL_H
 
 extern int term_init();
-extern void term_cursor_left();
 extern void term_cursor_right();
+extern void term_cursor_left();
 extern void term_putc(char c);
 extern void term_puts(char *s);
 extern int term_getc();

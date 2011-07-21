@@ -1,9 +1,11 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include <unistd.h>
 #include <termios.h>
+#include <termcap.h>
 
 #include "main.h"
 #include "util.h"
@@ -14,6 +16,91 @@ static FILE *output;
 
 static struct termios old_term;
 static struct termios new_term;
+
+typedef struct terminal_struct
+{
+	int (*term_init)();
+	void (*term_cursor_right)();
+	void (*term_cursor_left)();
+	void (*term_quit)();
+} terminal_t;
+
+static int vt100_init()
+{
+	return 0;
+}
+
+static void vt100_cursor_right()
+{
+	fputc('\33', stdout);
+	fputc('[', stdout);
+	fputc('C', stdout);
+}
+
+static void vt100_right_left()
+{
+	fputc('\10', stdout);
+}
+
+static void vt100_quit()
+{
+}
+
+static int termcap_init()
+{
+	return 0;
+}
+
+static void termcap_cursor_move(char *control_string)
+{
+	static char buf[30];
+	char *ap = buf;
+	char *str;
+
+	if( buf[0] == '\0' )
+	{
+		char *env_term;
+
+		env_term = getenv("TERM");
+		tgetent(buf, env_term);
+	}
+
+	str = tgetstr(control_string, &ap);
+	fputs(str, stdout);
+}
+
+static void termcap_cursor_right()
+{
+	termcap_cursor_move("nd");
+}
+
+static void termcap_right_left()
+{
+	termcap_cursor_move("le");
+}
+
+static void termcap_quit()
+{
+}
+
+static const terminal_t terminal_vt100 =
+{
+	.term_init = vt100_init,
+	.term_cursor_right = vt100_cursor_right,
+	.term_cursor_left = vt100_right_left,
+	.term_quit = vt100_quit
+};
+
+static const terminal_t terminal_termcap =
+{
+	.term_init = termcap_init,
+	.term_cursor_right = termcap_cursor_right,
+	.term_cursor_left = termcap_right_left,
+	.term_quit = termcap_quit
+};
+
+static const terminal_t *terminal_main = &terminal_termcap;
+//static const terminal_t *terminal_main = &terminal_vt100;
 
 int term_init()
 {
@@ -39,18 +126,18 @@ int term_init()
 	new_term.c_lflag &= ~ECHO;
 
 	term_set_new();
-}
 
-void term_cursor_left()
-{
-	fputc('\10', stdout);
+	terminal_main->term_init();
 }
 
 void term_cursor_right()
 {
-	fputc('\33', stdout);
-	fputc('[', stdout);
-	fputc('C', stdout);
+	terminal_main->term_cursor_right();
+}
+
+void term_cursor_left()
+{
+	terminal_main->term_cursor_left();
 }
 
 void term_putc(char c)
@@ -112,6 +199,8 @@ int term_get_file_fd()
 int term_quit()
 {
 	term_set_old();
+
+	terminal_main->term_quit();
 
 //	fclose(input);
 //	fclose(output);

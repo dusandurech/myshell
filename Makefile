@@ -2,9 +2,10 @@ CC = gcc
 FLAGS = -g -O0
 OBJ = array.o automat.o command.o dir.o env.o expand_regexp.o expand_var.o history.o inter_cmd.o jobs.o main.o process.o readline.o regexp.o signal.o terminal.o util.o
 OUT_BIN = myshell
+LIBS = -ltermcap
 
 $(OUT_BIN): $(OBJ)
-	$(CC) $(FLAGS) -o $(OUT_BIN) $(OBJ)
+	$(CC) $(FLAGS) -o $(OUT_BIN) $(OBJ) $(LIBS)
 
 array.o: array.c array.h
 	$(CC) $(FLAGS) -c array.c
