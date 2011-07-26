@@ -14,6 +14,7 @@
 #include "array.h"
 #include "dir.h"
 #include "jobs.h"
+#include "terminal.h"
 
 #include "process.h"
 

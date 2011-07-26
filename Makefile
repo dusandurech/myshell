@@ -43,7 +43,7 @@ main.o: main.c main.h process.h command.h inter_cmd.h terminal.h \
   readline.h history.h signal.h jobs.h
 	$(CC) $(FLAGS) -c main.c
 
-process.o: process.c main.h array.h dir.h jobs.h process.h
+process.o: process.c main.h array.h dir.h jobs.h terminal.h process.h
 	$(CC) $(FLAGS) -c process.c
 
 readline.o: readline.c main.h util.h history.h terminal.h readline.h
