@@ -166,6 +166,163 @@ static char* get_command_path(char *str_command)
 #define PREV_OP_NONE	0
 #define PREV_OP_PIPE	1
 
+#define TYPE_SEPARATOR		1
+#define TYPE_RECIRECTOR		2
+#define TYPE_PIPE		3
+
+#define DTL_NONE		0
+
+#define SEP_THEN		1
+#define SEP_AND			2
+#define SEP_OR			3
+#define SEP_NOWAIT		4
+
+#define RDR_APPEND		6
+#define RDR_OUT			7
+#define RDR_DOC_HETE		8
+#define RDR_IN			9
+
+static int handler_not_implemented(process_t *process, array_t *array, int *offset)
+{
+	char *str_op = (char *) array_get(array, (*offset));
+
+	fprintf(stderr, "Operator \'%s\' not implemented\n", str_op);
+	return -1;
+}
+
+static int handler_sep_or(process_t *process, array_t *array, int *offset)
+{
+	process->flag |= PROCESS_OR;
+	return 0;
+}
+
+static int handler_sep_and(process_t *process, array_t *array, int *offset)
+{
+	process->flag |= PROCESS_AND;
+	return 0;
+}
+
+static int handler_sep_nowait(process_t *process, array_t *array, int *offset)
+{
+	process->flag |= PROCESS_NO_WAIT;
+	return 0;
+}
+
+static int handler_rdr_out(process_t *process, array_t *array, int *offset)
+{
+	char *stdout_filename = (char *) array_get(array, ++(*offset));
+
+	process->stdout_filename = strdup(stdout_filename);
+	process->flag |= PROCESS_STDOUT_FILE;
+
+	return 0;
+}
+
+static int handler_rdr_append(process_t *process, array_t *array, int *offset)
+{
+	char *stdout_filename = (char *) array_get(array, ++(*offset));
+
+	process->stdout_filename = strdup(stdout_filename);
+	process->flag |= PROCESS_STDOUT_APPEND_FILE;
+
+	return 0;
+}
+
+static int handler_rdr_in(process_t *process, array_t *array, int *offset)
+{
+	char *stdin_filename = (char *) array_get(array, ++(*offset));
+
+	process->stdin_filename = strdup(stdin_filename);
+	process->flag |= PROCESS_STDIN_FILE;
+
+	return 0;
+}
+
+typedef struct control_string_struct
+{
+	char *str;
+	int len;
+	int type;
+	int detail;
+
+	int (*fce)(process_t *process, array_t *array, int *offset);
+} control_string_t;
+
+static control_string_t control_string_list[] =
+{
+	{ .str = ";",		.len = 1,	.type = TYPE_SEPARATOR, 	.detail = SEP_THEN,	.fce =  NULL },
+	{ .str = "||",		.len = 2,	.type = TYPE_SEPARATOR, 	.detail = SEP_OR,	.fce =  handler_sep_or },
+	{ .str = "|",		.len = 1,	.type = TYPE_PIPE, 		.detail = DTL_NONE,	.fce =  NULL },
+	{ .str = "&&",		.len = 2,	.type = TYPE_SEPARATOR, 	.detail = SEP_OR,	.fce =  handler_sep_and },
+	{ .str = "&",		.len = 1,	.type = TYPE_SEPARATOR, 	.detail = SEP_NOWAIT,	.fce =  handler_sep_nowait },
+	{ .str = ">>",		.len = 2,	.type = TYPE_RECIRECTOR, 	.detail = RDR_APPEND,	.fce =  handler_rdr_append },
+	{ .str = ">",		.len = 1,	.type = TYPE_RECIRECTOR, 	.detail = RDR_OUT,	.fce =  handler_rdr_out },
+	{ .str = "<<",		.len = 2,	.type = TYPE_RECIRECTOR, 	.detail = RDR_DOC_HETE,	.fce =  handler_not_implemented },
+	{ .str = "<",		.len = 1,	.type = TYPE_RECIRECTOR, 	.detail = RDR_IN,	.fce =  handler_rdr_in }
+};
+
+#define CONTROL_STRING_COUNT		( sizeof(control_string_list) / sizeof(control_string_t) )
+
+static control_string_t* work_control(process_t *process, array_t *array, int *offset)
+{
+	char *str;
+	int i;
+
+	if( process == NULL )
+	{
+		return NULL;
+	}
+
+	str = array_get(array, *offset);
+
+	if( str == NULL )
+	{
+		return &control_string_list[0];
+	}
+
+	for(i = 0; i < CONTROL_STRING_COUNT; i++)
+	{
+		control_string_t *cs;
+
+		cs = &control_string_list[i];
+
+		if( strncmp(cs->str, str, cs->len) == 0 )
+		{
+			if( cs->fce != NULL )
+			{
+				int res;
+
+				res = cs->fce(process, array, offset);
+			}
+
+			return cs;
+		}
+	}
+
+	return NULL;
+}
+
+static process_t* append_to_process(process_t *process_root, process_t *process)
+{
+	if( process_root == NULL )
+	{
+		return process;
+	}
+	else
+	{
+		process_t *process_tmp = process_root;
+
+		while( process_tmp->next_process != NULL )
+		{
+			process_tmp = process_tmp->next_process;
+		}
+
+		process_tmp->next_process = process;
+	}
+
+	return process_root;
+}
+
 process_t* command(char *str_command)
 {
 	process_t *process;
@@ -183,6 +340,12 @@ process_t* command(char *str_command)
 	str_command_expand = expand_var(str_command);
 	array = get_words(str_command_expand);
 
+	if( array->count == 0 )
+	{
+		array_destroy_item(array, free);
+		return NULL;
+	}
+
 	array_arg = array_new();
 
 	process_root = NULL;
@@ -195,6 +358,7 @@ process_t* command(char *str_command)
 	for(i = 0; i <= array->count; i++)
 	{
 		char *s = (char *) array_get(array, i);
+		control_string_t *control_string;
 
 		//printf(">%s<\n", s);
 
@@ -206,6 +370,8 @@ process_t* command(char *str_command)
 			{
 				//printf("filename_exec = %s\n", s);
 				fprintf(stderr, "Command not found !\n");
+
+				
 				return NULL;
 			}
 
@@ -215,29 +381,16 @@ process_t* command(char *str_command)
 			continue;
 		}
 
-		if( process != NULL && ( s == NULL || strcmp(s, ";") == 0 || strcmp(s, "|") == 0 ||
-					 strcmp(s, "&&") == 0 || strcmp(s, "||") == 0 || strcmp(s, "&") == 0) )
+		if( ( control_string = work_control(process, array, &i) ) != NULL )
 		{
-			process_set(process, filename_exec, (char **)array_get_clone_array(array_arg, strdup), env_import());
+			char **argv = (char **) array_get_clone_array(array_arg, strdup);
+			char **env = (char **) env_import();
+
+			process_set(process, filename_exec, argv, env);
 
 			filename_exec = NULL;
 			//array_print_string(array_arg);
 			arrray_do_empty_item(array_arg, free);
-
-			if( s != NULL && strcmp(s, "&&") == 0 )
-			{
-				process->flag |= PROCESS_AND;
-			}
-
-			if( s != NULL && strcmp(s, "||") == 0 )
-			{
-				process->flag |= PROCESS_OR;
-			}
-
-			if( s != NULL && strcmp(s, "&") == 0 )
-			{
-				process->flag |= PROCESS_NO_WAIT;
-			}
 
 			if( process_main == NULL )
 			{
@@ -254,64 +407,19 @@ process_t* command(char *str_command)
 				prev_op = PREV_OP_NONE;
 			}
 
-			if( s != NULL && strcmp(s, "|") == 0 )
+			if( control_string->type == TYPE_PIPE )
 			{
 				prev_op = PREV_OP_PIPE;
 			}
 			else
 			{
-				if( process_root == NULL )
-				{
-					process_root = process_main;
-				}
-				else
-				{
-					process_t *process_tmp = process_root;
-
-					while( process_tmp->next_process != NULL )
-					{
-						process_tmp = process_tmp->next_process;
-					}
-
-					process_tmp->next_process = process_main;
-				}
-
+				process_root = append_to_process(process_root, process);
 				process_main = NULL;
 				process = NULL;
 			}
 		}
 		else
 		{
-			if( s != NULL && strcmp(s, ">") == 0 )
-			{
-				char *stdout_filename = (char *) array_get(array, ++i);
-
-				process->stdout_filename = strdup(stdout_filename);
-				process->flag |= PROCESS_STDOUT_FILE;
-	
-				continue;
-			}
-
-			if( s != NULL && strcmp(s, ">>") == 0 )
-			{
-				char *stdout_filename = (char *) array_get(array, ++i);
-
-				process->stdout_filename = strdup(stdout_filename);
-				process->flag |= PROCESS_STDOUT_APPEND_FILE;
-	
-				continue;
-			}
-
-			if( s != NULL && strcmp(s, "<") == 0 )
-			{
-				char *stdin_filename = (char *) array_get(array, ++i);
-
-				process->stdin_filename = strdup(stdin_filename);
-				process->flag |= PROCESS_STDIN_FILE;
-
-				continue;
-			}
-
 			if( process != NULL && s != NULL )
 			{
 				array_add(array_arg, strdup(s));
