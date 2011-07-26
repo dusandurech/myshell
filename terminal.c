@@ -19,16 +19,9 @@ static struct termios new_term;
 
 typedef struct terminal_struct
 {
-	int (*term_init)();
 	void (*term_cursor_right)();
 	void (*term_cursor_left)();
-	void (*term_quit)();
 } terminal_t;
-
-static int vt100_init()
-{
-	return 0;
-}
 
 static void vt100_cursor_right()
 {
@@ -39,16 +32,11 @@ static void vt100_cursor_right()
 
 static void vt100_right_left()
 {
-	fputc('\10', stdout);
-}
+	fputc('\33', stdout);
+	fputc('[', stdout);
+	fputc('D', stdout);
 
-static void vt100_quit()
-{
-}
-
-static int termcap_init()
-{
-	return 0;
+	//fputc('\10', stdout);
 }
 
 static void termcap_cursor_move(char *control_string)
@@ -79,24 +67,16 @@ static void termcap_right_left()
 	termcap_cursor_move("le");
 }
 
-static void termcap_quit()
-{
-}
-
 static const terminal_t terminal_vt100 =
 {
-	.term_init = vt100_init,
 	.term_cursor_right = vt100_cursor_right,
 	.term_cursor_left = vt100_right_left,
-	.term_quit = vt100_quit
 };
 
 static const terminal_t terminal_termcap =
 {
-	.term_init = termcap_init,
 	.term_cursor_right = termcap_cursor_right,
 	.term_cursor_left = termcap_right_left,
-	.term_quit = termcap_quit
 };
 
 static const terminal_t *terminal_main = &terminal_termcap;
@@ -126,8 +106,6 @@ int term_init()
 	new_term.c_lflag &= ~ECHO;
 
 	term_set_new();
-
-	terminal_main->term_init();
 }
 
 void term_cursor_right()
@@ -199,8 +177,6 @@ int term_get_file_fd()
 int term_quit()
 {
 	term_set_old();
-
-	terminal_main->term_quit();
 
 //	fclose(input);
 //	fclose(output);
