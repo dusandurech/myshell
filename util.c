@@ -66,6 +66,13 @@ char* get_current_dir()
 	return path;
 }
 
+int set_current_dir(const char *path)
+{
+	chdir(path);
+
+	return 0;
+}
+
 void append_file_to_path(char *path, char *filename)
 {
 	int len;
