@@ -62,6 +62,22 @@ static void move_right()
 	term_cursor_right();
 }
 
+static void move_begin()
+{
+	while( offset > 0 )
+	{
+		move_left();
+	}
+}
+
+static void move_end()
+{
+	while( offset < len )
+	{
+		move_right();
+	}
+}
+
 static void backspace()
 {
 	int i;
@@ -110,17 +126,9 @@ static void set_string_from_history()
 		return;
 	}
 
+	readline_clean();
+
 	my_len = strlen(str);
-
-	while( offset < len )
-	{
-		move_right();
-	}
-
-	while( len > 0 )
-	{
-		backspace();
-	}
 
 	for(i = 0; i < my_len; i++)
 	{
@@ -189,11 +197,33 @@ static char get_prompt()
 
 void readline_print_status()
 {
+	char str_prompt[STR_SIZE];
+
+#if 0
 	term_puts("myshell");
 	term_putc(get_prompt());
 	term_putc(' ');
-	
-	//fprintf(stdout, "%s@%s:%s%c ", get_username(), get_nodename(), get_current_short_dir(), get_prompt());
+#endif
+
+	sprintf(str_prompt, "%s@%s:%s%c ", get_username(), get_nodename(), get_current_short_dir(), get_prompt());
+	term_puts(str_prompt);
+}
+
+void readline_clean()
+{
+	while( offset < len )
+	{
+		move_right();
+	}
+
+	while( len > 0 )
+	{
+		backspace();
+	}
+
+	memset(line, 0, STR_LINE_SIZE);
+	offset = 0;
+	len = 0;
 }
 
 int readline(char *str_line)
@@ -205,13 +235,36 @@ int readline(char *str_line)
 	len = 0;
 
 	do{
-		switch( (c = term_getc()) )
+		c = term_getc();
+	
+/*
+		printf("c = %d\n", c);
+
+		if( is_send_signal_int() )
+		{
+			fprintf(stderr, "sig");
+			term_putc('\n');
+			str_line[0] = '\0';
+
+			return 0;
+		}
+*/
+		switch( c )
 		{
 			case -1 :
+				fprintf(stderr, "\n-1\n");
 			break;
 
 			case '\n' :
 				term_putc('\n');
+			break;
+
+			case 1 :
+				move_begin();
+			break;
+
+			case 5 :
+				move_end();
 			break;
 
 			case 127 :
