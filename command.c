@@ -327,7 +327,6 @@ process_t* command(char *str_command)
 {
 	process_t *process;
 	process_t *process_root;
-	process_t *process_actual;
 	process_t *process_main;
 
 	char *filename_exec;
@@ -349,7 +348,6 @@ process_t* command(char *str_command)
 	array_arg = array_new();
 
 	process_root = NULL;
-	process_actual = NULL;
 	process_main = NULL;
 
 	filename_exec = NULL;
@@ -395,11 +393,11 @@ process_t* command(char *str_command)
 			if( process_main == NULL )
 			{
 				process_main = process;
-				process_actual = process_main;
 			}
 
 			if( prev_op == PREV_OP_PIPE )
 			{
+				//process->pipe_process = process;
 				process->pipe_process = process_main;
 				process_main = process;
 				process = NULL;
@@ -413,7 +411,7 @@ process_t* command(char *str_command)
 			}
 			else
 			{
-				process_root = append_to_process(process_root, process);
+				process_root = append_to_process(process_root, process_main);
 				process_main = NULL;
 				process = NULL;
 			}
