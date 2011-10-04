@@ -8,9 +8,17 @@
 
 #include "main.h"
 #include "jobs.h"
+#include "util.h"
 #include "inter_cmd.h"
 
 static int exit_flag;
+
+static int cmd_about(const char *str_cmdline)
+{
+	term_puts("program: " SHELL_NAME " author: " SHELL_AUTHOR "\n");
+
+	return 1;
+}
 
 static int cmd_jobs(const char *str_cmdline)
 {
@@ -53,6 +61,25 @@ static int cmd_bg(const char *str_cmdline)
 	return cmd_jobs_run_abstract(str_cmdline, JOBS_RUN_IN_BG);
 }
 
+static int cmd_cd(const char *str_cmdline)
+{
+	set_current_dir(str_cmdline+3);
+
+	return 1;
+}
+
+static int cmd_pwd(const char *str_cmdline)
+{
+	char *dir;
+
+	dir = get_current_dir();
+
+	term_puts(dir);
+	term_putc('\n');
+
+	return 1;
+}
+
 static int cmd_exit(const char *str_cmdline)
 {
 	exit_flag = 1;
@@ -69,9 +96,12 @@ typedef struct cmd_struct
 
 static cmd_t cmd_list[] =
 {
+	{ .name = "about",	.len = 5,	.fce_handler = cmd_about },
 	{ .name = "jobs",	.len = 4,	.fce_handler = cmd_jobs },
 	{ .name = "fg",		.len = 2,	.fce_handler = cmd_fg },
 	{ .name = "bg",		.len = 2,	.fce_handler = cmd_bg },
+	{ .name = "cd",		.len = 2,	.fce_handler = cmd_cd },
+	{ .name = "pwd",	.len = 3,	.fce_handler = cmd_pwd },
 	{ .name = "exit",	.len = 4,	.fce_handler = cmd_exit }
 };
 

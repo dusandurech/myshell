@@ -4,6 +4,7 @@
 #define MAIN_H
 
 #define SHELL_NAME		"myshell"
+#define SHELL_AUTHOR		"Dušan Ďurech"
 
 #define STR_SIZE		256
 #define STR_LINE_SIZE		256
