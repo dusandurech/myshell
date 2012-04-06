@@ -10,6 +10,7 @@
 #define PROCESS_NO_WAIT			64
 #define PROCESS_AND			128
 #define PROCESS_OR			256
+#define PROCESS_PIPE			512
 
 typedef struct doument_here_struct
 {
@@ -33,6 +34,7 @@ typedef struct process_struct
 
 	struct process_struct *pipe_process;
 	struct process_struct *next_process;
+	struct process_struct *prev_process;
 } process_t;
 
 extern process_t* process_new();

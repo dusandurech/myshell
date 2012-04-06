@@ -96,6 +96,11 @@ void process_print(const process_t *process)
 		printf(">>%s ", process->stdout_filename);
 	}
 
+	if( process->flag & PROCESS_PIPE )
+	{
+		printf("|");
+	}
+
 	if( process->flag & PROCESS_STDIN_DOC_HERE )
 	{
 		printf("<< \"DOCUMENT HETE\" ");
@@ -103,13 +108,8 @@ void process_print(const process_t *process)
 
 	putchar('\n');
 
-	printf("pipe process %p\n", process->pipe_process);
+	printf("prev process %p\n", process->prev_process);
 	printf("next process %p\n", process->next_process);
-
-	if( process->pipe_process != NULL )
-	{
-		process_print(process->pipe_process);
-	}
 
 	if( process->next_process != NULL )
 	{
@@ -156,7 +156,14 @@ static int process_exec(process_t *process)
 		}
 	}
 
+	//fprintf(stderr, "EXEC %s\n", process->filename_exec);
+
 	res = execve(process->filename_exec, process->param, process->env);
+
+	if( res < 0 )
+	{
+		fprintf(stderr, "I dont exec %s file !", process->filename_exec);
+	}
 
 	return res;
 }
@@ -195,14 +202,15 @@ static int process_pipe(process_t *process, pid_t session_pid)
 			dup(fd[1]);
 			close(fd[0]);
 
-			if( process->pipe_process != NULL && process->pipe_process->pipe_process != NULL )
+			if( process->prev_process != NULL &&
+			    process->prev_process->prev_process != NULL  )
 			{
-				process_pipe(process->pipe_process, session_pid);
+				process_pipe(process->prev_process, session_pid);
 			}
 			else
 			{
 				add_to_session(getpid(), session_pid);
-				process_exec(process->pipe_process);
+				process_exec(process->prev_process);
 			}
 		break;
 		
@@ -293,12 +301,25 @@ int process_run(process_t *process)
 {
 	pid_t pid;
 	pid_t session_pid;
+	int is_pipe;
 	int status;
 	int fd[2];
 
 	if( process == NULL )
 	{
 		return;
+	}
+
+	is_pipe = 0;
+
+	if( process->flag & PROCESS_PIPE )
+	{
+		is_pipe = 1;
+
+		while( process->flag & PROCESS_PIPE )
+		{
+			process = process->next_process;
+		}
 	}
 
 	switch( ( pid = fork() ) )
@@ -318,7 +339,17 @@ int process_run(process_t *process)
 
 			signal_set_for_process();
 
+#if 0
 			if( process->pipe_process != NULL )
+			{
+				process_pipe(process, session_pid);
+			}
+			else
+			{
+				process_exec(process);
+			}
+#endif
+			if( is_pipe )
 			{
 				process_pipe(process, session_pid);
 			}
@@ -396,11 +427,6 @@ void process_destroy(process_t *process)
 		free(process->stdin_filename);
 	}
 
-	if( process->pipe_process != NULL )
-	{
-		process_destroy(process->pipe_process);
-	}
-
 	if( process->next_process != NULL )
 	{
 		process_destroy(process->next_process);
@@ -409,30 +435,84 @@ void process_destroy(process_t *process)
 	free(process);
 }
 
+//#define TEST_PROCESS
+
 #ifdef TEST_PROCESS
 int main(int argc, char **argv, char **env)
 {
+	process_t *process0;
 	process_t *process1;
 	process_t *process2;
 	process_t *process3;
 	process_t *process4;
+	process_t *process5;
 	int status;
 
-	char *args4[] = {"ls", "-al", NULL};
-	char *args3[] = {"wc", "-l", NULL};
-	char *args2[] = {"wc", "-c", NULL};
-	char *args1[] = {"tr", "3", "X", NULL};
+	char *args0[] = {"echo", "begin", NULL};
+	char *args1[] = {"ls", "-al", NULL};
+	char *args2[] = {"wc", "-l", NULL};
+	char *args3[] = {"wc", "-c", NULL};
+	char *args4[] = {"tr", "3", "X", NULL};
+	char *args5[] = {"echo", "end", NULL};
 
-	process1 = process_new("/usr/bin/tr", args1, NULL);
-	process2 = process_new("/usr/bin/wc", args2, NULL);
-	process3 = process_new("/usr/bin/wc", args3, NULL);
-	process4 = process_new("/bin/ls", args4, NULL);
+	signal_init();
+	term_init();
+	jobs_init();
 
-	process1->pipe_process = process2;
-	process2->pipe_process = process3;
-	process3->pipe_process = process4;
+	process0 = process_new();
+	process1 = process_new();
+	process2 = process_new();
+	process3 = process_new();
+	process4 = process_new();
+	process5 = process_new();
 
-	process_run(process1);
+	process_set(process0, "/bin/echo", args0, NULL);
+	process0->flag = 0;
+
+	process_set(process1, "/bin/ls", args1, NULL);
+	process1->flag = PROCESS_PIPE;
+
+	process_set(process2, "/usr/bin/wc", args2, NULL);
+	process2->flag = PROCESS_PIPE;
+
+	process_set(process3, "/usr/bin/wc", args3, NULL);
+	process3->flag = PROCESS_PIPE;
+
+	process_set(process4, "/usr/bin/tr", args4, NULL);
+	process4->flag = 0;
+
+	process_set(process5, "/bin/echo", args5, NULL);
+	process5->flag = 0;
+
+	process0->prev_process = NULL;
+	process0->next_process = process1;
+
+	process1->prev_process = NULL;
+	process1->next_process = process2;
+
+	process2->prev_process = process1;
+	process2->next_process = process3;
+
+	process3->prev_process = process2;
+	process3->next_process = process4;
+
+	process4->prev_process = process3;
+	process4->next_process = process5;
+
+	process5->prev_process = process4;
+	process5->next_process = NULL;
+
+	term_set_old();
+
+	process_print(process1);
+
+	process_run(process0);
+
+	term_set_control(getpid());
+	term_set_new();
+
+	term_quit();
+
 /*
 	process_t *process1;
 	char *args1[] = {"cat", NULL};
@@ -445,6 +525,7 @@ int main(int argc, char **argv, char **env)
 */	
 
 
+#if 0
 	//command("ls -al | wc -l | wc -c | tr 3 X");
 
 	process_t *process;
@@ -463,6 +544,7 @@ int main(int argc, char **argv, char **env)
 	process_destroy(process);
 
 	//printf("%s\n", get_command_path("ls"));
+#endif
 
 	printf("koniec\n");
 

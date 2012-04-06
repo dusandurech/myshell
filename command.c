@@ -163,121 +163,41 @@ static char* get_command_path(char *str_command)
 	return NULL;
 }
 
-#define PREV_OP_NONE	0
-#define PREV_OP_PIPE	1
-
-#define TYPE_SEPARATOR		1
-#define TYPE_RECIRECTOR		2
-#define TYPE_PIPE		3
-
-#define DTL_NONE		0
-
-#define SEP_THEN		1
-#define SEP_AND			2
-#define SEP_OR			3
-#define SEP_NOWAIT		4
-
-#define RDR_APPEND		6
-#define RDR_OUT			7
-#define RDR_DOC_HETE		8
-#define RDR_IN			9
-
-static int handler_not_implemented(process_t *process, array_t *array, int *offset)
-{
-	char *str_op = (char *) array_get(array, (*offset));
-
-	fprintf(stderr, "Operator \'%s\' not implemented\n", str_op);
-	return -1;
-}
-
-static int handler_sep_or(process_t *process, array_t *array, int *offset)
-{
-	process->flag |= PROCESS_OR;
-	return 0;
-}
-
-static int handler_sep_and(process_t *process, array_t *array, int *offset)
-{
-	process->flag |= PROCESS_AND;
-	return 0;
-}
-
-static int handler_sep_nowait(process_t *process, array_t *array, int *offset)
-{
-	process->flag |= PROCESS_NO_WAIT;
-	return 0;
-}
-
-static int handler_rdr_out(process_t *process, array_t *array, int *offset)
-{
-	char *stdout_filename = (char *) array_get(array, ++(*offset));
-
-	process->stdout_filename = strdup(stdout_filename);
-	process->flag |= PROCESS_STDOUT_FILE;
-
-	return 0;
-}
-
-static int handler_rdr_append(process_t *process, array_t *array, int *offset)
-{
-	char *stdout_filename = (char *) array_get(array, ++(*offset));
-
-	process->stdout_filename = strdup(stdout_filename);
-	process->flag |= PROCESS_STDOUT_APPEND_FILE;
-
-	return 0;
-}
-
-static int handler_rdr_in(process_t *process, array_t *array, int *offset)
-{
-	char *stdin_filename = (char *) array_get(array, ++(*offset));
-
-	process->stdin_filename = strdup(stdin_filename);
-	process->flag |= PROCESS_STDIN_FILE;
-
-	return 0;
-}
-
 typedef struct control_string_struct
 {
 	char *str;
 	int len;
-	int type;
+	unsigned int flag;
 	int detail;
-
-	int (*fce)(process_t *process, array_t *array, int *offset);
 } control_string_t;
 
 static control_string_t control_string_list[] =
 {
-	{ .str = ";",		.len = 1,	.type = TYPE_SEPARATOR, 	.detail = SEP_THEN,	.fce =  NULL },
-	{ .str = "||",		.len = 2,	.type = TYPE_SEPARATOR, 	.detail = SEP_OR,	.fce =  handler_sep_or },
-	{ .str = "|",		.len = 1,	.type = TYPE_PIPE, 		.detail = DTL_NONE,	.fce =  NULL },
-	{ .str = "&&",		.len = 2,	.type = TYPE_SEPARATOR, 	.detail = SEP_OR,	.fce =  handler_sep_and },
-	{ .str = "&",		.len = 1,	.type = TYPE_SEPARATOR, 	.detail = SEP_NOWAIT,	.fce =  handler_sep_nowait },
-	{ .str = ">>",		.len = 2,	.type = TYPE_RECIRECTOR, 	.detail = RDR_APPEND,	.fce =  handler_rdr_append },
-	{ .str = ">",		.len = 1,	.type = TYPE_RECIRECTOR, 	.detail = RDR_OUT,	.fce =  handler_rdr_out },
-	{ .str = "<<",		.len = 2,	.type = TYPE_RECIRECTOR, 	.detail = RDR_DOC_HETE,	.fce =  handler_not_implemented },
-	{ .str = "<",		.len = 1,	.type = TYPE_RECIRECTOR, 	.detail = RDR_IN,	.fce =  handler_rdr_in }
+	{ .str = ";",		.len = 1,	.flag = 0				},
+	{ .str = "||",		.len = 2,	.flag = PROCESS_OR			},
+	{ .str = "|",		.len = 1,	.flag = PROCESS_PIPE			},
+	{ .str = "&&",		.len = 2,	.flag = PROCESS_AND			},
+	{ .str = "&",		.len = 1,	.flag = PROCESS_NO_WAIT			},
+	{ .str = ">>",		.len = 2,	.flag = PROCESS_STDOUT_APPEND_FILE	},
+	{ .str = ">",		.len = 1,	.flag = PROCESS_STDOUT_FILE		},
+	{ .str = "<<",		.len = 2,	.flag = 0				},
+	{ .str = "<",		.len = 1,	.flag = PROCESS_STDIN_FILE		}
 };
 
 #define CONTROL_STRING_COUNT		( sizeof(control_string_list) / sizeof(control_string_t) )
 
-static control_string_t* work_control(process_t *process, array_t *array, int *offset)
+static int is_separator(process_t *process, char *str)
 {
-	char *str;
 	int i;
 
 	if( process == NULL )
 	{
-		return NULL;
+		return 0;
 	}
-
-	str = array_get(array, *offset);
 
 	if( str == NULL )
 	{
-		return &control_string_list[0];
+		return 1;
 	}
 
 	for(i = 0; i < CONTROL_STRING_COUNT; i++)
@@ -288,18 +208,12 @@ static control_string_t* work_control(process_t *process, array_t *array, int *o
 
 		if( strncmp(cs->str, str, cs->len) == 0 )
 		{
-			if( cs->fce != NULL )
-			{
-				int res;
-
-				res = cs->fce(process, array, offset);
-			}
-
-			return cs;
+			process->flag |= cs->flag;
+			return 1;
 		}
 	}
 
-	return NULL;
+	return 0;
 }
 
 static process_t* append_to_process(process_t *process_root, process_t *process)
@@ -310,14 +224,15 @@ static process_t* append_to_process(process_t *process_root, process_t *process)
 	}
 	else
 	{
-		process_t *process_tmp = process_root;
+		process_t *process_act = process_root;
 
-		while( process_tmp->next_process != NULL )
+		while( process_act->next_process != NULL )
 		{
-			process_tmp = process_tmp->next_process;
+			process_act = process_act->next_process;
 		}
 
-		process_tmp->next_process = process;
+		process_act->next_process = process;
+		process->prev_process = process_act;
 	}
 
 	return process_root;
@@ -325,16 +240,13 @@ static process_t* append_to_process(process_t *process_root, process_t *process)
 
 process_t* command(char *str_command)
 {
-	process_t *process;
 	process_t *process_root;
-	process_t *process_main;
-
+	process_t *process;
 	char *filename_exec;
 	char *str_command_expand;
 	array_t *array;
 	array_t *array_arg;
 	int i;
-	int prev_op;
 
 	str_command_expand = expand_var(str_command);
 	array = get_words(str_command_expand);
@@ -345,13 +257,10 @@ process_t* command(char *str_command)
 		return NULL;
 	}
 
-	array_arg = array_new();
-
 	process_root = NULL;
-	process_main = NULL;
-
+	process = NULL;
+	array_arg = array_new();
 	filename_exec = NULL;
-	prev_op = PREV_OP_NONE;
 
 	for(i = 0; i <= array->count; i++)
 	{
@@ -366,10 +275,7 @@ process_t* command(char *str_command)
 
 			if( filename_exec == NULL )
 			{
-				//printf("filename_exec = %s\n", s);
 				fprintf(stderr, "Command not found !\n");
-
-				
 				return NULL;
 			}
 
@@ -379,41 +285,20 @@ process_t* command(char *str_command)
 			continue;
 		}
 
-		if( ( control_string = work_control(process, array, &i) ) != NULL )
+		if( is_separator(process, s) )
 		{
-			char **argv = (char **) array_get_clone_array(array_arg, strdup);
-			char **env = (char **) env_import();
-
-			process_set(process, filename_exec, argv, env);
-
-			filename_exec = NULL;
-			//array_print_string(array_arg);
-			arrray_do_empty_item(array_arg, free);
-
-			if( process_main == NULL )
+			if( process != NULL )
 			{
-				process_main = process;
-			}
+				char **argv = (char **) array_get_clone_array(array_arg, strdup);
+				char **env = (char **) env_import();
+	
+				process_set(process, filename_exec, argv, env);
+	
+				process_root = append_to_process(process_root, process);
 
-			if( prev_op == PREV_OP_PIPE )
-			{
-				//process->pipe_process = process;
-				process->pipe_process = process_main;
-				process_main = process;
 				process = NULL;
-
-				prev_op = PREV_OP_NONE;
-			}
-
-			if( control_string->type == TYPE_PIPE )
-			{
-				prev_op = PREV_OP_PIPE;
-			}
-			else
-			{
-				process_root = append_to_process(process_root, process_main);
-				process_main = NULL;
-				process = NULL;
+				filename_exec = NULL;
+				arrray_do_empty_item(array_arg, free);
 			}
 		}
 		else
@@ -431,18 +316,32 @@ process_t* command(char *str_command)
 	return process_root;
 }
 
+//#define TEST_COMMAND
+
 #ifdef TEST_COMMAND
 int main(int argc, char **argv, char **env)
 {
 	process_t *process;
 
 	process = command("echo begin; echo \"\\\"hello world\\\"\"; ls -al | wc -l | wc -c | tr '3' 'X'; echo \"\'END\'\"; echo end");
-	//process = command("echo Hello world;");
+	//process = command("echo Hello;");
 
 	process_print(process);
 
+	signal_init();
+	term_init();
+	jobs_init();
+
+	term_set_old();
+
 	printf("\nrun process:\n");
-	process_run(process);
+
+	//process_run(process);
+
+	term_set_control(getpid());
+	term_set_new();
+
+	term_quit();
 
 	process_destroy(process);
 
