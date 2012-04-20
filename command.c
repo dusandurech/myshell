@@ -18,11 +18,141 @@
 #include "process.h"
 #include "command.h"
 
-static array_t* get_words(const char *str_commandline)
-{
-	const char *separator[] = { ";", "||", "|", "&&", "&", ">>", ">", "<<", "<" };
+#define TOKEN_TYPE_CMD		1
+#define TOKEN_TYPE_ARG		2
+#define TOKEN_TYPE_SEP		3
+#define TOKEN_TYPE_MOD		4
 
-	array_t *array;
+typedef struct token_struct
+{
+	char *str;
+	int len;
+	int type;
+	int ref;
+	struct token_struct *next;
+} token_t;
+
+token_t *token_new(char *str, int type, int ref)
+{
+	token_t *token;
+
+	token = (token_t *) malloc( sizeof(token_t) );
+	token->str = strdup(str);
+	token->len = strlen(str);
+	token->type = type;
+	token->ref = ref;
+	token->next = NULL;
+
+	return token;
+}
+
+void token_print(token_t *token)
+{
+	char *type;
+
+	type = "UNKNOW";
+
+	switch( token->type )
+	{
+		case TOKEN_TYPE_CMD : type = "CMD"; break;
+		case TOKEN_TYPE_ARG : type = "ARG"; break;
+		case TOKEN_TYPE_SEP : type = "SEP"; break;
+		case TOKEN_TYPE_MOD : type = "MOD"; break;
+	}
+
+	printf("--------------\n");
+	printf("str = %s\n", token->str);
+	printf("len = %d\n", token->len);
+	printf("type = %s\n", type);
+}
+
+void token_print_all(token_t *token)
+{
+	while( token != NULL )
+	{
+		token_print(token);
+		token = token->next;
+	}
+
+	printf("--------------\n");
+}
+
+static token_t* token_get_last(token_t *token_root)
+{
+	token_t *act = token_root;
+
+	if( token_root == NULL )
+	{
+		return NULL;
+	}
+	else
+	{
+		while( act->next != NULL )
+		{
+			act = act->next;
+		}
+	}
+
+	return act;
+}
+
+static token_t* token_append(token_t *token_root, token_t *token)
+{
+	token_t *last;
+
+	if( token_root == NULL )
+	{
+		return token;
+	}
+
+	last = token_get_last(token_root);
+	last->next = token;
+
+	return token_root;
+}
+
+static token_t* add_word(token_t *token_root, char *str, int len, int ref)
+{
+	int type;
+
+	type = TOKEN_TYPE_ARG;
+
+	if( token_root == NULL || token_get_last(token_root)->type == TOKEN_TYPE_SEP )
+	{
+		type = TOKEN_TYPE_CMD;
+	}
+
+	token_root = token_append(token_root, token_new(str, type, ref) );
+	memset(str, 0, len);
+
+	return token_root;
+}
+
+void token_destroy(token_t *token)
+{
+	free(token->str);
+	free(token);
+}
+
+void token_destroy_all(token_t *token)
+{
+	while( token != NULL )
+	{
+		token_t *del;
+
+		del = token;
+		token = token->next;
+
+		token_destroy(del);
+	}
+}
+
+static token_t* get_token(const char *str_commandline)
+{
+	const char *separator[] = { ";", "||", "|", "&&", "&", ">>", ">", "<" };
+
+	token_t *token;
+	
 	char word[STR_SIZE];
 	char pair;
 	int len;
@@ -30,10 +160,9 @@ static array_t* get_words(const char *str_commandline)
 	int j;
 
 	memset(word, 0, STR_SIZE);
-	array = array_new();
-
 	len = strlen(str_commandline);
 	pair = '\0';
+	token = NULL;
 
 	for(i = 0; i <= len; i++)
 	{
@@ -67,7 +196,8 @@ static array_t* get_words(const char *str_commandline)
 			continue;
 		}
 
-		for(j = 0; j < 9; j++)
+
+		for(j = 0; j < 8; j++)
 		{
 			int len;
 	
@@ -77,21 +207,24 @@ static array_t* get_words(const char *str_commandline)
 			{
 				if( word[0] != '\0' )
 				{
-					array_add(array, strdup(word) );
+					token = add_word(token, word, STR_SIZE, i-strlen(word));
+				}	// no else !!!
+
+				if( word[0] == '\0' )
+				{
+					int type;
+					
+					type = (j <= 4 ? TOKEN_TYPE_SEP : TOKEN_TYPE_MOD);
+					token = token_append(token, token_new((char *)separator[j], type, i) );
 				}
-	
-				array_add(array, strdup(separator[j]) );
-	
-				//printf("separator add >%s< >%s<\n", word, separator[j]);
-	
-				memset(word, 0, STR_SIZE);
+		
 				i += len-1;
 	
 				break;
 			}
 		}
 	
-		if( j < 9 )
+		if( j < 8 )
 		{
 			continue;
 		}
@@ -100,10 +233,7 @@ static array_t* get_words(const char *str_commandline)
 		{
 			if( word[0] != '\0' && pair == '\0'  )
 			{
-				//printf("add world >%s<\n", word);
-				expand_regexp(word, array);
-				//array_add(array, strdup(word) );
-				memset(word, 0, STR_SIZE);
+				token = add_word(token, word, STR_SIZE, i-strlen(word));
 			}
 		}
 		else
@@ -112,28 +242,13 @@ static array_t* get_words(const char *str_commandline)
 		}
 	}
 
-#if 0
-	for(i = 0; i < array->count; i++)
+	if( pair != '\0' )
 	{
-		char *s = (char *) array_get(array, i);
-
-		printf(">%s<\n", s);
-	}
-#endif
-
-	return array;
-}
-
-static void destroy_words(char **words)
-{
-	int i;
-
-	for(i = 0; words[i] != NULL; i++)
-	{
-		free(words[i]);
+		printf("Vstup nie je ukonceny znakom: >%c<\n", pair);
+		return NULL;
 	}
 
-	free(words);
+	return token;
 }
 
 static char* get_command_path(char *str_command)
@@ -168,7 +283,6 @@ typedef struct control_string_struct
 	char *str;
 	int len;
 	unsigned int flag;
-	int detail;
 } control_string_t;
 
 static control_string_t control_string_list[] =
@@ -180,13 +294,12 @@ static control_string_t control_string_list[] =
 	{ .str = "&",		.len = 1,	.flag = PROCESS_NO_WAIT			},
 	{ .str = ">>",		.len = 2,	.flag = PROCESS_STDOUT_APPEND_FILE	},
 	{ .str = ">",		.len = 1,	.flag = PROCESS_STDOUT_FILE		},
-	{ .str = "<<",		.len = 2,	.flag = 0				},
 	{ .str = "<",		.len = 1,	.flag = PROCESS_STDIN_FILE		}
 };
 
 #define CONTROL_STRING_COUNT		( sizeof(control_string_list) / sizeof(control_string_t) )
 
-static int is_separator(process_t *process, char *str)
+static int set_flag_to_process(process_t *process, char *str)
 {
 	int i;
 
@@ -197,7 +310,7 @@ static int is_separator(process_t *process, char *str)
 
 	if( str == NULL )
 	{
-		return 1;
+		return 0;
 	}
 
 	for(i = 0; i < CONTROL_STRING_COUNT; i++)
@@ -213,7 +326,7 @@ static int is_separator(process_t *process, char *str)
 		}
 	}
 
-	return 0;
+	return 1;
 }
 
 static process_t* append_to_process(process_t *process_root, process_t *process)
@@ -238,80 +351,229 @@ static process_t* append_to_process(process_t *process_root, process_t *process)
 	return process_root;
 }
 
+static void print_ref(char *str, int ref)
+{
+	int i;
+
+	printf("%s\n", str);
+
+	for(i = 0; i < ref; i++)
+	{
+		putchar(' ');
+	}
+
+	putchar('^');
+	putchar('\n');
+}
+
+static int token_check(token_t *token, char *str)
+{
+	token_t *token_prev;
+	int fd_count[3];
+	char *res;
+
+	res = NULL;
+
+	token_prev = NULL;
+
+	while( token != NULL )
+	{
+		if( token->type == TOKEN_TYPE_CMD )
+		{
+			memset(fd_count, 0, 3*sizeof(int));
+		}
+
+		if( token->type == TOKEN_TYPE_SEP )
+		{
+			if( ( !strcmp(token->str, "||") || !strcmp(token->str, "&&") || !strcmp(token->str, "|") ) &&
+			    (token->next == NULL || token->next->type != TOKEN_TYPE_CMD) )
+			{
+				printf("CHYBA: za separatorom %s nenasleduje prikaz\n", token->str);
+				print_ref(str, token->ref);
+
+				return -1;
+			}
+		}
+
+		if( token->type == TOKEN_TYPE_SEP )
+		{
+			if( token->next != NULL && token->next->type != TOKEN_TYPE_CMD )
+			{
+				printf("CHYBA: za separatorom %s nenasleduje prikaz\n", token->str);
+				print_ref(str, token->ref);
+
+				return -1;
+			}
+		}
+
+		if( token->type == TOKEN_TYPE_MOD )
+		{
+			int i;
+
+			if( !strcmp(token->str, "<") ) fd_count[0]++;
+			if( !strcmp(token->str, ">") ) fd_count[1]++;
+			if( !strcmp(token->str, ">>") ) fd_count[1]++;
+
+			for(i = 0; i < 3; i++)
+			{
+				if( fd_count[i] > 1 )
+				{
+					printf("CHYBA: viac krat pouzity presmerovavac vstupu alebo vystupu\n");
+					print_ref(str, token->ref);
+	
+					return -1;
+				}
+			}
+
+			if( token->next == NULL || token->next->type != TOKEN_TYPE_ARG )
+			{
+				printf("CHYBA: za presmerovacom %s nenasleduje argument presmerovania\n", token->str);
+				print_ref(str, token->ref);
+
+				return -1;
+			}
+		}
+
+		if( token->type == TOKEN_TYPE_CMD && (res=get_command_path(token->str)) == NULL )
+		{
+			free(res);
+			printf("CHYBA: prikaz %s neexistuje\n", token->str);
+			print_ref(str, token->ref);
+
+			return -1;
+		}
+	
+		if( res != NULL )
+		{
+			free(res);
+			res = NULL;
+		}
+
+		token_prev = token;
+		token = token->next;
+	}
+
+	return 0;
+}
+
 process_t* command(char *str_command)
 {
 	process_t *process_root;
 	process_t *process;
+
 	char *filename_exec;
 	char *str_command_expand;
-	array_t *array;
+
+	token_t *token_root;
+	token_t *token;
 	array_t *array_arg;
+
+	int end;
 	int i;
 
 	str_command_expand = expand_var(str_command);
-	array = get_words(str_command_expand);
+	token_root = get_token(str_command_expand);
 
-	if( array->count == 0 )
-	{
-		array_destroy_item(array, free);
-		return NULL;
-	}
-
+	token = token_root;
+	end = 0;
 	process_root = NULL;
 	process = NULL;
 	array_arg = array_new();
 	filename_exec = NULL;
 
-	for(i = 0; i <= array->count; i++)
+	//token_print_all(token);
+
+	if( token_check(token, str_command_expand) == -1 )
 	{
-		char *s = (char *) array_get(array, i);
-		control_string_t *control_string;
+		return NULL;
+	}
 
-		//printf(">%s<\n", s);
+	while( end == 0 )
+	{
+		int type;
 
-		if( s != NULL && filename_exec == NULL )
+		if( token == NULL )
 		{
-			filename_exec = get_command_path(s);
-
-			if( filename_exec == NULL )
-			{
-				fprintf(stderr, "Command not found !\n");
-				return NULL;
-			}
-
-			process = process_new();
-			array_add(array_arg, strdup(s));
-		
-			continue;
-		}
-
-		if( is_separator(process, s) )
-		{
-			if( process != NULL )
-			{
-				char **argv = (char **) array_get_clone_array(array_arg, strdup);
-				char **env = (char **) env_import();
-	
-				process_set(process, filename_exec, argv, env);
-	
-				process_root = append_to_process(process_root, process);
-
-				process = NULL;
-				filename_exec = NULL;
-				arrray_do_empty_item(array_arg, free);
-			}
+			type = TOKEN_TYPE_SEP;
 		}
 		else
 		{
-			if( process != NULL && s != NULL )
-			{
-				array_add(array_arg, strdup(s));
-			}
+			type = token->type;
 		}
+
+		switch( type )
+		{
+			case TOKEN_TYPE_CMD:
+				filename_exec = get_command_path(token->str);
+	
+				if( filename_exec == NULL )
+				{
+					fprintf(stderr, "Command %s not found !\n", token->str);
+					return NULL;
+				}
+	
+				process = process_new();
+				array_add(array_arg, strdup(token->str));
+			break;
+
+			case TOKEN_TYPE_ARG:
+				array_add(array_arg, strdup(token->str));
+			break;
+
+			case TOKEN_TYPE_SEP:
+				if( process != NULL )
+				{
+					char **argv = (char **) array_get_clone_array(array_arg, strdup);
+					char **env = (char **) env_import();
+			
+					process_set(process, filename_exec, argv, env);
+
+					if( token != NULL)
+					{
+						set_flag_to_process(process, token->str);
+					}
+
+					process_root = append_to_process(process_root, process);
+		
+					process = NULL;
+					filename_exec = NULL;
+					arrray_do_empty_item(array_arg, free);
+				}
+
+				if( token == NULL )
+				{
+					end = 1;
+				}
+			break;
+
+			case TOKEN_TYPE_MOD:
+				set_flag_to_process(process, token->str);
+
+				if( token->str[0] == '>' )
+				{
+					process->stdout_filename = strdup(token->next->str);
+				}
+				else if( token->str[0] == '<' )
+				{
+					process->stdin_filename = strdup(token->next->str);
+				}
+
+				token = token->next;
+			break;
+		}
+
+		if( end == 1 )
+		{
+			break;
+		}
+
+		token = token->next;
 	}
 
-	array_destroy_item(array, free);
+	token_destroy_all(token_root);
 	array_destroy_item(array_arg, free);
+
+	//process_print(process_root);
 
 	return process_root;
 }
