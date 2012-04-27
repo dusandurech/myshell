@@ -16,7 +16,7 @@ static int isAlphabet(char c)
 {
 	return ( c >= 'a' && c <= 'z' ) ||
 	       ( c >= 'A' && c <= 'Z' ) ||
-	       ( c >= '0' && c <= '9' );
+	       ( c >= '0' && c <= '9' ) || c == '_' ;
 }
 
 char* expand_var(const char *str_commandline)
@@ -47,11 +47,22 @@ char* expand_var(const char *str_commandline)
 
 		if( capVar == 1 && ! isAlphabet(c) )
 		{
+			char *value;
 			int l;
 
 			capVar = 0;
-			l = strlen(env_get(varname));
-			strncpy(str+count, env_get(varname), l);
+			value = env_get(varname);
+
+			if( value == NULL )
+			{
+				l = 0;
+			}
+			else
+			{
+				l = strlen(value);
+			}
+
+			strncpy(str+count, value, l);
 			count += l;
 
 			//printf("%s", env_get(varname));
