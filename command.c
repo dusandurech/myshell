@@ -13,7 +13,6 @@
 #include "dir.h"
 
 #include "expand_var.h"
-#include "expand_regexp.h"
 
 #include "process.h"
 #include "command.h"
@@ -122,7 +121,38 @@ static token_t* add_word(token_t *token_root, char *str, int len, int ref)
 		type = TOKEN_TYPE_CMD;
 	}
 
-	token_root = token_append(token_root, token_new(str, type, ref) );
+	if( type == TOKEN_TYPE_ARG )
+	{
+		dir_t *dir;
+		int count;
+		int i;
+
+		count = 0;
+		dir = dir_new("./");
+	
+		for(i = 0; i < dir->item->count; i++)
+		{
+			char *s = (char *) array_get(dir->item, i);
+	
+			if( regexp(str, s) == 1 )
+			{
+				count++;
+				token_root = token_append(token_root, token_new(s, type, ref) );
+			}
+		}
+	
+		dir_destroy(dir);
+
+		if( count == 0 )
+		{
+			token_root = token_append(token_root, token_new(str, type, ref) );
+		}
+	}
+	else
+	{
+		token_root = token_append(token_root, token_new(str, type, ref) );
+	}
+
 	memset(str, 0, len);
 
 	return token_root;
@@ -186,6 +216,12 @@ static token_t* get_token(const char *str_commandline)
 
 		if( pair == c && pair != '\0' )
 		{
+			if( pair == '\'' )
+			{
+				token = token_append(token, token_new(word, TOKEN_TYPE_ARG, i) );
+				word[0] = '\0';
+			}
+
 			pair = '\0';
 			continue;
 		}
