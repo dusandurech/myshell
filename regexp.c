@@ -430,18 +430,45 @@ int nsa_regexp(nsa_t *nsa, char *str_regexp)
 				int neg = 0;
 
 				memset(alphabet, 0, sizeof(char)*ALPHABET_COUNT );
+				
+				i++;
 
-				if( str_regexp[++i] == '!' )
+				if( str_regexp[i] == '!' || str_regexp[i] == '^' )
 				{
+					//printf("neg\n");
 					neg = 1;
 					i++;
 				}
 
 				while( str_regexp[i] != ']' )
 				{
+					//printf("str_regexp[%d] = %c\n", i, str_regexp[i]);
+
+					if( str_regexp[i] == '\0' )
+					{
+						return -1;
+					}
+
+					if( str_regexp[i] == '\\' )
+					{
+						alphabet[ ALPHA_TO_ID(str_regexp[++i]) ] = 1;
+						continue;
+					}
+
 					if( str_regexp[i] == '-' )
 					{
-						for(j = str_regexp[i-1] ; j <= str_regexp[i+1]; j++)
+						char prev;
+						char next;
+
+						prev = str_regexp[i-1];
+						next = str_regexp[i+1];
+
+						if( next == '\\' )
+						{
+							next = str_regexp[++i];
+						}
+
+						for(j = prev ; j <= next; j++)
 						{
 							alphabet[ ALPHA_TO_ID(j) ] = 1;
 						}
@@ -466,6 +493,7 @@ int nsa_regexp(nsa_t *nsa, char *str_regexp)
 				{
 					if( alphabet[j] == 1 )
 					{
+						//printf("range %c\n", ID_TO_ALPHA(j));
 						nsa_status_append(nsa_status, ID_TO_ALPHA(j), current_status+1);
 					}
 				}
@@ -802,7 +830,7 @@ int dsa_step(dsa_t *dsa, char *str)
 
 		if( current_status == 0 )
 		{
-			return -1;
+			return 0;
 		}
 	}
 
@@ -1069,7 +1097,14 @@ int regexp(char *str_trgexp, char *str_in)
 	dsa = dsa_new();
 	nsa = nsa_new();
 
-	nsa_regexp(nsa, str_trgexp);
+	if( nsa_regexp(nsa, str_trgexp) == -1 )
+	{
+		nsa_destroy(nsa);
+		dsa_destroy(dsa);
+
+		return -1;
+	}
+
 	convert_nsa_to_dsa(nsa, dsa);
 	
 	res_nsa = nsa_step(nsa, str_in);
