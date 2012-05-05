@@ -22,6 +22,11 @@ static void append(char c)
 
 	//fprintf(stderr, "c = %d\n", c);
 
+	if( len >= STR_LINE_SIZE-1 )
+	{
+		return;
+	}
+
 	memmove(line+offset+1, line+offset, STR_LINE_SIZE-(offset+1));
 
 	line[offset++] = c;
