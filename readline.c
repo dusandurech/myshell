@@ -307,8 +307,11 @@ int readline(char *str_line)
 
 			default :
 				//printf("c = %d\n", c);
-				append(c);
-				history_backup_current_line(line);
+				if( c >= ' ' )
+				{
+					append(c);
+					history_backup_current_line(line);
+				}
 			break;
 		}
 	}while( c != '\n' );
