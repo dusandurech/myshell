@@ -86,7 +86,11 @@ int term_init()
 {
 	if( ! isatty( fileno(stdout) ) )
 	{
-		fprintf(stderr, "You are not a terminal !\n");
+		//fprintf(stderr, "You are not a terminal !\n");
+
+		input = NULL;
+		output = NULL;
+
 		return -1;
 	}
 
@@ -135,7 +139,7 @@ int term_getc()
 
 int term_set_old()
 {
-	if( tcsetattr(fileno(input), TCSANOW, &old_term) != 0 )
+	if( input != NULL && tcsetattr(fileno(input), TCSANOW, &old_term) != 0 )
 	{
 		fprintf(stderr, "Could not set old attributes !\n");
 		return -1;
@@ -146,7 +150,7 @@ int term_set_old()
 
 int term_set_new()
 {
-	if( tcsetattr(fileno(input), TCSANOW, &new_term) != 0 )
+	if( input != NULL && tcsetattr(fileno(input), TCSANOW, &new_term) != 0 )
 	{
 		fprintf(stderr, "Could not set new attributes !\n");
 		return -1;
@@ -158,6 +162,11 @@ int term_set_new()
 int term_set_control(pid_t session_pid)
 {
 	int res;
+
+	if( input == NULL )
+	{
+		return 0;
+	}
 
 	res = tcsetpgrp(0, session_pid);
 
@@ -171,6 +180,11 @@ int term_set_control(pid_t session_pid)
 
 int term_get_file_fd()
 {
+	if( input == NULL )
+	{
+		return -1;
+	}
+
 	return fileno(input);
 }
 
