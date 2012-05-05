@@ -43,15 +43,18 @@ static int run_script(char *filename)
 			str_command[len-1] = '\0';
 		}
 
-		process = command(str_command);
-
-		if( process != NULL )
+		if( inter_cmd_exec(str_command) == 0 )
 		{
-			term_set_old();
-			process_run(process);
-			process_destroy(process);
-			term_set_control(getpid());
-			term_set_new();
+			process = command(str_command);
+
+			if( process != NULL )
+			{
+				term_set_old();
+				process_run(process);
+				process_destroy(process);
+				term_set_control(getpid());
+				term_set_new();
+			}
 		}
 	}
 
