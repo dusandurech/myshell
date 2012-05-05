@@ -135,7 +135,10 @@ static int process_exec(process_t *process)
 
 		close(1);
 
-		unlink(process->stdout_filename);
+		if( process->flag & PROCESS_STDOUT_FILE )
+		{
+			unlink(process->stdout_filename);
+		}
 
 		fd = open(process->stdout_filename, mask, 0666);
 
