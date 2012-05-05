@@ -113,7 +113,7 @@ static token_t* token_append(token_t *token_root, token_t *token)
 	return token_root;
 }
 
-static token_t* add_word(token_t *token_root, char *str, int len, int ref)
+static token_t* add_word(token_t *token_root, char *str, int len, int ref, int is_expand_regexp)
 {
 	int type;
 
@@ -124,7 +124,7 @@ static token_t* add_word(token_t *token_root, char *str, int len, int ref)
 		type = TOKEN_TYPE_CMD;
 	}
 
-	if( type == TOKEN_TYPE_ARG )
+	if( is_expand_regexp && type == TOKEN_TYPE_ARG )
 	{
 		dir_t *dir;
 		int count;
@@ -185,7 +185,7 @@ static token_t* get_token(const char *str_commandline)
 	const char *separator[] = { ";", "||", "|", "&&", "&", ">>", ">", "<" };
 
 	token_t *token;
-	
+	int expand_regexp;
 	char word[STR_SIZE];
 	char pair;
 	int len;
@@ -196,7 +196,9 @@ static token_t* get_token(const char *str_commandline)
 	len = strlen(str_commandline);
 	pair = '\0';
 	token = NULL;
+	expand_regexp = 1;
 
+	//printf("str_commandline = >%s<\n", str_commandline);
 	for(i = 0; i <= len; i++)
 	{
 		char c;
@@ -219,6 +221,11 @@ static token_t* get_token(const char *str_commandline)
 
 		if( pair == c && pair != '\0' )
 		{
+			//printf(">%s<\n", word);
+			//token = token_append(token, token_new(word, TOKEN_TYPE_ARG, i-strlen(word)) );
+			//memset(word, 0, STR_SIZE);
+			expand_regexp = 0;
+
 			pair = '\0';
 			continue;
 		}
@@ -244,7 +251,8 @@ static token_t* get_token(const char *str_commandline)
 			{
 				if( word[0] != '\0' )
 				{
-					token = add_word(token, word, STR_SIZE, i-strlen(word));
+					token = add_word(token, word, STR_SIZE, i-strlen(word), expand_regexp);
+					expand_regexp = 1;
 				}	// no else !!!
 
 				if( word[0] == '\0' )
@@ -253,6 +261,7 @@ static token_t* get_token(const char *str_commandline)
 					
 					type = (j <= 4 ? TOKEN_TYPE_SEP : TOKEN_TYPE_MOD);
 					token = token_append(token, token_new((char *)separator[j], type, i) );
+					expand_regexp = 1;
 				}
 		
 				i += len-1;
@@ -270,7 +279,8 @@ static token_t* get_token(const char *str_commandline)
 		{
 			if( word[0] != '\0' && pair == '\0'  )
 			{
-				token = add_word(token, word, STR_SIZE, i-strlen(word));
+				token = add_word(token, word, STR_SIZE, i-strlen(word), expand_regexp);
+				expand_regexp = 1;
 			}
 		}
 		else
