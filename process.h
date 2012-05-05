@@ -32,7 +32,6 @@ typedef struct process_struct
 	
 	doument_here_t *doument_here;
 
-	struct process_struct *pipe_process;
 	struct process_struct *next_process;
 	struct process_struct *prev_process;
 } process_t;

@@ -44,9 +44,9 @@ static int do_process_to_string(process_t *process, char *str)
 
 	len = 0;
 
-	if( process->pipe_process != NULL )
+	if( process->prev_process != NULL && process->prev_process->flag & PROCESS_PIPE )
 	{
-		len += do_process_to_string(process->pipe_process, str);
+		len += do_process_to_string(process->prev_process, str);
 		len += sprintf(str+len, "| ");
 	}
 
