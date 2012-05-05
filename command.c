@@ -22,6 +22,9 @@
 #define TOKEN_TYPE_SEP		3
 #define TOKEN_TYPE_MOD		4
 
+//#define DEBUG_PRINT_TOKEN
+//#define DEBUG_PRINT_PROCESS
+
 typedef struct token_struct
 {
 	char *str;
@@ -216,12 +219,6 @@ static token_t* get_token(const char *str_commandline)
 
 		if( pair == c && pair != '\0' )
 		{
-			if( pair == '\'' )
-			{
-				token = token_append(token, token_new(word, TOKEN_TYPE_ARG, i) );
-				word[0] = '\0';
-			}
-
 			pair = '\0';
 			continue;
 		}
@@ -232,6 +229,10 @@ static token_t* get_token(const char *str_commandline)
 			continue;
 		}
 
+		if( pair == '\0' && c == '#' )
+		{
+			break;
+		}
 
 		for(j = 0; j < 8; j++)
 		{
@@ -265,7 +266,7 @@ static token_t* get_token(const char *str_commandline)
 			continue;
 		}
 
-		if( ( c == ' ' || c == '\0' ) )
+		if( ( c <= ' ' || c == '\0' ) )
 		{
 			if( word[0] != '\0' && pair == '\0'  )
 			{
@@ -517,7 +518,9 @@ process_t* command(char *str_command)
 	array_arg = array_new();
 	filename_exec = NULL;
 
-	//token_print_all(token);
+#ifdef DEBUG_PRINT_TOKEN
+	token_print_all(token);
+#endif
 
 	if( token_check(token, str_command_expand) == -1 )
 	{
@@ -609,7 +612,9 @@ process_t* command(char *str_command)
 	token_destroy_all(token_root);
 	array_destroy_item(array_arg, free);
 
-	//process_print(process_root);
+#ifdef DEBUG_PRINT_PROCESS
+	process_print(process_root);
+#endif
 
 	return process_root;
 }
