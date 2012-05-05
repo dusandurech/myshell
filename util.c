@@ -98,3 +98,17 @@ void append_file_to_path(char *path, char *filename)
 
 	strcat(path, filename);
 }
+
+int str_append_to_char(char *str, int maxlen, char c)
+{
+	int len;
+
+	len = strlen(str);
+
+	if( len < maxlen )
+	{
+		str[len] = c;
+	}
+
+	return len;
+}

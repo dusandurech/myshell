@@ -105,7 +105,7 @@ char* expand_var(const char *str_commandline)
 
 		if( capVar == 1 )
 		{
-			strncat(varname, &c, 1);
+			str_append_to_char(varname, STR_SIZE, c);
 			continue;
 		}
 

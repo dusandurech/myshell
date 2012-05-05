@@ -201,10 +201,10 @@ static token_t* get_token(const char *str_commandline)
 		c = str_commandline[i];
 		//printf("c = >%c<\n", c);
 
-		if( c == '\\' )
+		if( c == '\\' && pair == '\0' )
 		{
 			c = str_commandline[++i];
-			strncat(word, &c, 1);
+			str_append_to_char(word, STR_SIZE, c);
 			continue;
 		}
 
@@ -228,7 +228,7 @@ static token_t* get_token(const char *str_commandline)
 
 		if( pair != '\0' )
 		{
-			strncat(word, &c, 1);
+			str_append_to_char(word, STR_SIZE, c);
 			continue;
 		}
 
@@ -274,7 +274,7 @@ static token_t* get_token(const char *str_commandline)
 		}
 		else
 		{
-			strncat(word, &c, 1);
+			str_append_to_char(word, STR_SIZE, c);
 		}
 	}
 
