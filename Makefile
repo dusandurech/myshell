@@ -2,7 +2,7 @@ CC = gcc
 FLAGS = -g -O0
 OBJ = array.o command.o dir.o env.o expand_var.o history.o inter_cmd.o jobs.o main.o process.o readline.o regexp.o signal.o terminal.o util.o
 OUT_BIN = myshell
-LIBS = -ltermcap
+LIBS = 
 
 $(OUT_BIN): $(OBJ)
 	$(CC) $(FLAGS) -o $(OUT_BIN) $(OBJ) $(LIBS)
@@ -48,7 +48,7 @@ regexp.o: regexp.c regexp.h
 signal.o: signal.c main.h signal.h
 	$(CC) $(FLAGS) -c signal.c
 
-terminal.o: terminal.c main.h util.h terminal.h
+terminal.o: terminal.c main.h util.h terminal.h config.h
 	$(CC) $(FLAGS) -c terminal.c
 
 util.o: util.c main.h util.h
@@ -56,3 +56,7 @@ util.o: util.c main.h util.h
 
 clean:
 	rm -rf *.o $(OUT_BIN)
+install:
+	cp $(OUT_BIN) /usr/local/bin
+uninstall:
+	rm -rf /usr/local/bin/$(OUT_BIN)

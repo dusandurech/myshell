@@ -10,6 +10,7 @@
 #include "main.h"
 #include "util.h"
 #include "terminal.h"
+#include "config.h"
 
 static FILE *input;
 static FILE *output;
@@ -39,6 +40,7 @@ static void vt100_right_left()
 	//fputc('\10', stdout);
 }
 
+#ifdef SUPPORT_LIB_TERMCAP
 static void termcap_cursor_move(char *control_string)
 {
 	static char buf[30];
@@ -67,20 +69,24 @@ static void termcap_right_left()
 	termcap_cursor_move("le");
 }
 
+static const terminal_t terminal_termcap =
+{
+	.term_cursor_right = termcap_cursor_right,
+	.term_cursor_left = termcap_right_left,
+};
+#endif
+
 static const terminal_t terminal_vt100 =
 {
 	.term_cursor_right = vt100_cursor_right,
 	.term_cursor_left = vt100_right_left,
 };
 
-static const terminal_t terminal_termcap =
-{
-	.term_cursor_right = termcap_cursor_right,
-	.term_cursor_left = termcap_right_left,
-};
-
+#ifdef SUPPORT_LIB_TERMCAP
 static const terminal_t *terminal_main = &terminal_termcap;
-//static const terminal_t *terminal_main = &terminal_vt100;
+#else
+static const terminal_t *terminal_main = &terminal_vt100;
+#endif
 
 int term_init()
 {
