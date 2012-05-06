@@ -144,7 +144,7 @@ static int process_exec(process_t *process)
 
 		if( fd < 0 )
 		{
-			fprintf(stderr, "I dont open %s file for write !", process->stdout_filename);
+			fprintf(stderr, "Nemozem otvorit subor %s pre zapis !", process->stdout_filename);
 		}
 	}
 
@@ -157,7 +157,7 @@ static int process_exec(process_t *process)
 
 		if( fd < 0 )
 		{
-			fprintf(stderr, "I dont open %s file for read !", process->stdin_filename);
+			fprintf(stderr, "Nemozem otvorit subor %s pre citanie !", process->stdin_filename);
 		}
 	}
 
@@ -167,7 +167,7 @@ static int process_exec(process_t *process)
 
 	if( res < 0 )
 	{
-		fprintf(stderr, "I dont exec %s file !", process->filename_exec);
+		fprintf(stderr, "Nemozem spustit subor %s !", process->filename_exec);
 	}
 
 	return res;

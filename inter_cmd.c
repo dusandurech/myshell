@@ -36,7 +36,7 @@ static int cmd_jobs_run_abstract(const char *str_cmdline, const int jobs_type)
 
 	if( res != 1 )
 	{
-		fprintf(stderr, "This is no numer !\n");
+		fprintf(stderr, "Nebolo zadane cislo !\n");
 		return 1;
 	}
 
@@ -44,7 +44,7 @@ static int cmd_jobs_run_abstract(const char *str_cmdline, const int jobs_type)
 
 	if( res == 0 )
 	{
-		fprintf(stderr, "This job id dont exists !\n");
+		fprintf(stderr, "Takyto job ID neexistuje !\n");
 		return 1;
 	}
 	

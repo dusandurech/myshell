@@ -105,7 +105,7 @@ int term_init()
 
 	if( input == NULL || output == NULL )
 	{
-		fprintf(stderr, "Could not open /dev/tty !\n");
+		fprintf(stderr, "Nemozem otvorit terminal /dev/tty !\n");
 		return -1;
 	}
 
@@ -147,7 +147,7 @@ int term_set_old()
 {
 	if( input != NULL && tcsetattr(fileno(input), TCSANOW, &old_term) != 0 )
 	{
-		fprintf(stderr, "Could not set old attributes !\n");
+		fprintf(stderr, "Nemozem nastavit stare nastavenia terminalu !\n");
 		return -1;
 	}
 
@@ -158,7 +158,7 @@ int term_set_new()
 {
 	if( input != NULL && tcsetattr(fileno(input), TCSANOW, &new_term) != 0 )
 	{
-		fprintf(stderr, "Could not set new attributes !\n");
+		fprintf(stderr, "Nemozem nastavit nove nastavenia terminalu !\n");
 		return -1;
 	}
 
@@ -178,7 +178,7 @@ int term_set_control(pid_t session_pid)
 
 	if( res != 0 )
 	{
-		fprintf(stderr, "set_control_term ERROR %d !!!!!!!!!!!!!!!!!!!!\n", res);
+		fprintf(stderr, "Nemozem nastavit riadiaci terminalu\n", res);
 	}
 
 	return res;
